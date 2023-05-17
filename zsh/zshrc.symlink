@@ -18,30 +18,31 @@ then
   source ~/.localrc
 fi
 
-typeset -U config_files
-config_files=($DOTFILES/**/*.zsh)
-
-echo "Sourcing ${#config_files[@]} config files..."
-
-# load path files
-for file in ${(M)config_files:#*/path.zsh}
-do
-  echo "loading path file: $file"
-  source $file
-done
-
-# load everything but the path and completion files
-for file in ${${config_files:#*/path.zsh}:#*/completion.zsh}
-do
-  echo "loading config file: $file"
-  source $file
-done
-
-unset config_files
 
 if [[ -n "$CODESPACES" ]]; then
   ZSH_THEME="robbyrussell"
 else
+
+  typeset -U config_files
+  config_files=($DOTFILES/**/*.zsh)
+
+  echo "Sourcing ${#config_files[@]} config files..."
+
+  # load path files
+  for file in ${(M)config_files:#*/path.zsh}
+  do
+    echo "loading path file: $file"
+    source $file
+  done
+
+  # load everything but the path and completion files
+  for file in ${${config_files:#*/path.zsh}:#*/completion.zsh}
+  do
+    echo "loading config file: $file"
+    source $file
+  done
+
+  unset config_files
   # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
   # Initialization code that may require console input (password prompts, [y/n]
   # confirmations, etc.) must go above this block; everything else may go below.
