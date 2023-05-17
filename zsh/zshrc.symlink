@@ -5,8 +5,11 @@ export TZ=America/Chicago
 
 # oh-my-zsh
 export ZSH=$HOME/.oh-my-zsh
-export DOTFILES=$HOME/.dotfiles
-
+if [[ -n "$CODESPACES" ]]; then
+  export DOTFILES=/workspaces/.codespaces/.persistedshare/dotfiles/
+else
+  export DOTFILES=$HOME/.dotfiles
+fi
 # Stash your environment variables in ~/.localrc. This means they'll stay out
 # of your main dotfiles repository (which may be public, like this one), but
 # you'll have access to them in your scripts.
