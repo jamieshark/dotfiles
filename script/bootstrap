@@ -6,6 +6,7 @@ cd "$(dirname "$0")/.."
 if [[ -n "$CODESPACES" ]]; then
   export DOTFILES_ROOT=/workspaces/.codespaces/.persistedshare/dotfiles
   export DOTFILES_DEST=$DOTFILES_ROOT
+  export VERBOSE=true
 else
   export DOTFILES_ROOT=$(pwd -P)
   export DOTFILES_DEST=$HOME
