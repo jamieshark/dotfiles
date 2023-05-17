@@ -3,9 +3,11 @@
 # bootstrap creates symlinks for all dotfiles in this directory to $HOME
 
 cd "$(dirname "$0")/.."
-export DOTFILES_ROOT=$(pwd -P)
-export DOTFILES=/workspaces/.codespaces/.persistedshare/dotfiles
-
+if [[ -n "$CODESPACES" ]]; then
+  export DOTFILES_ROOT=/workspaces/.codespaces/.persistedshare/dotfiles/
+else
+  export DOTFILES_ROOT=$(pwd -P)
+fi
 set -e # -e: exit on error
 
 echo ''
@@ -161,13 +163,14 @@ if [[ -n "$CODESPACES" ]]; then
 
   echo ''
   echo '  Codespaces setup finished!'
-# If we're on a Mac, let's install and setup homebrew.
+# If we're on a Mac, let's install and setup other deps
 elif [ "$(uname -s)" == "Darwin" ]
 then
   if ! [ -f git/gitconfig.local.symlink ]
   then
     setup_gitconfig
   fi
+
   install_dotfiles
 
   info "installing dependencies"
