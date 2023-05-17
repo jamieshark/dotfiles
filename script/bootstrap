@@ -3,12 +3,10 @@
 # bootstrap creates symlinks for all dotfiles in this directory to $HOME
 
 cd "$(dirname "$0")/.."
+export DOTFILES_ROOT=$(pwd -P)
 if [[ -n "$CODESPACES" ]]; then
-  export DOTFILES_ROOT=/workspaces/.codespaces/.persistedshare/dotfiles
-  export DOTFILES_DEST=$DOTFILES_ROOT
-  export VERBOSE=true
+  export DOTFILES_DEST=$HOME
 else
-  export DOTFILES_ROOT=$(pwd -P)
   export DOTFILES_DEST=$HOME
 fi
 set -e # -e: exit on error
