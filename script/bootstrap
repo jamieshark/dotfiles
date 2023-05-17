@@ -128,8 +128,9 @@ link_file () {
 install_dotfiles () {
   info 'installing dotfiles'
 
-  local overwrite_all=false backup_all=false skip_all=false
+  local overwrite_all=${1:-false} backup_all=false skip_all=false
 
+  echo $overwrite_all
   for src in $(find -H "$DOTFILES_ROOT" -maxdepth 2 -name '*.symlink' -not -path '*.git*')
   do
     dst="$HOME/.$(basename "${src%.*}")"
@@ -154,18 +155,19 @@ install_mac_deps () {
 }
 
 # setup_gitconfig
-install_dotfiles
 
 if [[ -n "$CODESPACES" ]]; then
   echo 'Setting up Codespaces dotfiles...'
-  exec zsh
-
+  # overwrite files if in codespaces to prevent hanging creation script
+  install_dotfiles true
 
   echo ''
   echo '  Codespaces setup finished!'
 # If we're on a Mac, let's install and setup homebrew.
 elif [ "$(uname -s)" == "Darwin" ]
 then
+  install_dotfiles
+
   info "installing dependencies"
   {
     install_mac_deps &&
