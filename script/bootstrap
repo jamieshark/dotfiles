@@ -28,27 +28,27 @@ fail () {
 }
 
 
-# setup_gitconfig () {
-#   if ! [ -f git/gitconfig.local.symlink ]
-#   then
-#     info 'setup gitconfig'
+setup_gitconfig () {
+  if ! [ -f git/gitconfig.local.symlink ]
+  then
+    info 'setup gitconfig'
 
-#     git_credential='cache'
-#     if [ "$(uname -s)" == "Darwin" ]
-#     then
-#       git_credential='osxkeychain'
-#     fi
+    git_credential='cache'
+    if [ "$(uname -s)" == "Darwin" ]
+    then
+      git_credential='osxkeychain'
+    fi
 
-#     user ' - What is your github author name?'
-#     read -e git_authorname
-#     user ' - What is your github author email?'
-#     read -e git_authoremail
+    user ' - What is your github author name?'
+    read -e git_authorname
+    user ' - What is your github author email?'
+    read -e git_authoremail
 
-#     sed -e "s/AUTHORNAME/$git_authorname/g" -e "s/AUTHOREMAIL/$git_authoremail/g" -e "s/GIT_CREDENTIAL_HELPER/$git_credential/g" git/gitconfig.local.symlink.example > git/gitconfig.local.symlink
+    sed -e "s/AUTHORNAME/$git_authorname/g" -e "s/AUTHOREMAIL/$git_authoremail/g" -e "s/GIT_CREDENTIAL_HELPER/$git_credential/g" git/gitconfig.local.symlink.example > git/gitconfig.local.symlink
 
-#     success 'gitconfig'
-#   fi
-# }
+    success 'gitconfig'
+  fi
+}
 
 link_file () {
   local src=$1 dst=$2
@@ -130,7 +130,6 @@ install_dotfiles () {
 
   local overwrite_all=${1:-false} backup_all=false skip_all=false
 
-  echo $overwrite_all
   for src in $(find -H "$DOTFILES_ROOT" -maxdepth 2 -name '*.symlink' -not -path '*.git*')
   do
     dst="$HOME/.$(basename "${src%.*}")"
@@ -154,7 +153,7 @@ install_mac_deps () {
   $DOTFILES_ROOT/script/install
 }
 
-# setup_gitconfig
+setup_gitconfig
 
 if [[ -n "$CODESPACES" ]]; then
   echo 'Setting up Codespaces dotfiles...'
