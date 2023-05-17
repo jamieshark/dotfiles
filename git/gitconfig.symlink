@@ -1,0 +1,85 @@
+[github]
+  user = jamieshark
+[credential]
+  helper = osxkeychain
+[core]
+  editor = code --wait
+  excludesfile = "$HOME/.gitignore"
+[alias]
+  # Show verbose output about tags, branches or remotes
+  tags = tag -l
+  branches = branch -a
+  remotes = remote -v
+  co = checkout -b
+
+  # Pretty log output
+  hist = log --graph --abbrev-commit --decorate --date=relative --format=format:'%C(red)%h%C(r) —— %C(bold blue)%an%C(r): %C(white)%s%C(r) %C(dim white) %C(bold green)(%ar)%C(r) %C(bold yellow)%d%C(r)' --all
+  view = log --graph --oneline --decorate --boundary --all HEAD
+
+  # removes any local branches that have been deleted from remote
+  prune = fetch --prune
+
+  # pulls down changes, prunes remote-tracking branches
+  # up = !git pull --rebase --prune $@ && git submodule update --init --recursive
+  up = !git pull --rebase --prune $@
+
+  # adds untracked files, adds tracked files commit
+  wip = !git add . && git commit -am "WIP"
+
+  # resets previous commit (to be used typically after wip commit)
+  undo = reset HEAD~1 --mixed
+
+  # reset unstaged files
+  wipe = !git checkout -- . && git clean -f -d
+
+  # run from master to clean up merged branches
+  bclean = "!git branch -vv | grep 'origin/.*: gone]' | awk '{print $1}' | xargs git branch -D"
+
+  # run from branch to rebase off of main
+  bup = pull origin main --rebase
+
+  # switches to master, runs git up, deletes all branches merged into master (run after PR is merged)
+  bdone = "!f() { git checkout ${1-main} && git up && git bclean ${1-main}; }; f"
+
+  diffmaster="!f() { git diff $(git merge-base main $1)..$1; }; f"
+
+  # find a file path
+  find = !git ls-files | grep -i
+
+  # search codebase for a string
+  grep = grep -Ii
+
+  # push it real good
+  pushit = !echo 'Ahh push it' && git push -u origin $(git branch-name) && echo 'PUSH IT REAL GOOD 😎'
+
+  pusheen = !$DOTFILES/bin/git-pusheen && git push $@
+
+[color]
+  # Use colors in Git commands that are capable of colored output when outputting to the terminal
+  ui = auto
+[color "branch"]
+  current = yellow reverse
+  local = yellow
+  remote = green
+[color "diff"]
+  meta = yellow bold
+  frag = magenta bold
+  old = red bold
+  new = green bold
+[color "status"]
+  added = yellow
+  changed = green
+  untracked = cyan
+
+# Use `origin` as the default remote on the `main` branch in all cases
+[branch "main"]
+  remote = origin
+  merge = refs/heads/main
+
+[merge]
+  conflictstyle = diff3
+
+[pull]
+  ff = only
+[push]
+  default = simple
