@@ -6,7 +6,7 @@ export TZ=America/Chicago
 # oh-my-zsh
 export ZSH=$HOME/.oh-my-zsh
 if [[ -n "$CODESPACES" ]]; then
-  export DOTFILES=/workspaces/.codespaces/.persistedshare/dotfiles/
+  export DOTFILES=/workspaces/.codespaces/.persistedshare/dotfiles
 else
   export DOTFILES=$HOME/.dotfiles
 fi
