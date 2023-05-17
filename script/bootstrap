@@ -4,6 +4,7 @@
 
 cd "$(dirname "$0")/.."
 export DOTFILES_ROOT=$(pwd -P)
+export DOTFILES=/workspaces/.codespaces/.persistedshare/dotfiles
 
 set -e # -e: exit on error
 
