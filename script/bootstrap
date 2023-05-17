@@ -5,7 +5,7 @@
 cd "$(dirname "$0")/.."
 export DOTFILES_ROOT=$(pwd -P)
 if [[ -n "$CODESPACES" ]]; then
-  export DOTFILES_DEST=$HOME
+  export DOTFILES_DEST=$DOTFILES_ROOT
 else
   export DOTFILES_DEST=$HOME
 fi
