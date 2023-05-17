@@ -153,8 +153,6 @@ install_mac_deps () {
   $DOTFILES_ROOT/script/install
 }
 
-setup_gitconfig
-
 if [[ -n "$CODESPACES" ]]; then
   echo 'Setting up Codespaces dotfiles...'
   # overwrite files if in codespaces to prevent hanging creation script
@@ -165,6 +163,10 @@ if [[ -n "$CODESPACES" ]]; then
 # If we're on a Mac, let's install and setup homebrew.
 elif [ "$(uname -s)" == "Darwin" ]
 then
+  if ! [ -f git/gitconfig.local.symlink ]
+  then
+    setup_gitconfig
+  fi
   install_dotfiles
 
   info "installing dependencies"
