@@ -20,7 +20,7 @@ then
   source ~/.localrc
 fi
 
-typeset -U config_files
+typeset -u config_files
 config_files=($DOTFILES/**/*.zsh)
 
 echo "Sourcing ${#config_files[@]} config files..."
