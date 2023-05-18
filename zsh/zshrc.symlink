@@ -1,3 +1,13 @@
+# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+# Initialization code that may require console input (password prompts, [y/n]
+# confirmations, etc.) must go above this block; everything else may go below.
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
+# set time zone
+export TZ=America/Chicago
+
 # oh-my-zsh
 export ZSH=$HOME/.oh-my-zsh
 export DOTFILES_ROOT=$(pwd -P)
@@ -8,27 +18,8 @@ else
   export DOTFILES=$HOME/.dotfiles
 fi
 
-if [ ! -d $ZSH ]
-then
-  # oh-my-zsh install
-  echo "==========================================================="
-  echo "             cloning oh-my-zsh                             "
-  echo "-----------------------------------------------------------"
-  sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
-fi
-
-if [ ! -d $ZSH_CUSTOM/themes/powerlevel10k ]
-then
-  # powerlevel10k install
-  echo "==========================================================="
-  echo "             cloning powerlevel10k theme                   "
-  echo "-----------------------------------------------------------"
-    git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/themes/powerlevel10k
-fi
-
-
-# Load: config
-source $DOTFILES/zsh/config
+# install oh-my-zsh and p10k if it isn't there
+source $DOTFILES/zsh/install
 
 # Load: plugins
 source $DOTFILES/zsh/plugins
@@ -37,10 +28,15 @@ source $DOTFILES/zsh/plugins
 source ${ZSH:-~/.oh-my-zsh}/oh-my-zsh.sh
 
 # Load p10k
+POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true
+ZSH_THEME="powerlevel10k/powerlevel10k"
 source $DOTFILES/zsh/.p10k.zsh
 
 # Load: aliases
 source $DOTFILES/zsh/aliases
+
+# Load: env
+source $DOTFILES/zsh/env
 
 # find path files and load them
 find . -name path.zsh | while read path_file ; do source $path_file ; done
