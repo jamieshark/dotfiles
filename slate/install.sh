@@ -4,4 +4,4 @@
 #
 # This installs the window management system Slate.js
 
-echo "installing slate"
+echo "installing slate (jk)"

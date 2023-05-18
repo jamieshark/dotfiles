@@ -157,6 +157,7 @@ install_mac_deps () {
   $DOTFILES_ROOT/script/install
 }
 
+
 if [[ -n "$CODESPACES" ]]; then
   echo 'Setting up Codespaces dotfiles...'
   # overwrite files if in codespaces to prevent hanging creation script
