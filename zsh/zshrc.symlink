@@ -1,61 +1,55 @@
-# TODO - show logs only if VERBOSE is set
-
-# set time zone
-export TZ=America/Chicago
-
 # oh-my-zsh
 export ZSH=$HOME/.oh-my-zsh
 export DOTFILES_ROOT=$(pwd -P)
-POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true
 
 if [[ -n "$CODESPACES" ]]; then
   export DOTFILES=/workspaces/.codespaces/.persistedshare/dotfiles
 else
   export DOTFILES=$HOME/.dotfiles
 fi
-POWERLEVEL_CONFIG_PATH=$DOTFILES/zsh/.p10k.zsh
-# Stash your environment variables in ~/.localrc. This means they'll stay out
-# of your main dotfiles repository (which may be public, like this one), but
-# you'll have access to them in your scripts.
-if [[ -a ~/.localrc ]]
+
+if [ ! -d $ZSH ]
 then
-  source ~/.localrc
+  # oh-my-zsh install
+  echo "==========================================================="
+  echo "             cloning oh-my-zsh                             "
+  echo "-----------------------------------------------------------"
+  sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 fi
 
+if [ ! -d $ZSH_CUSTOM/themes/powerlevel10k ]
+then
+  # powerlevel10k install
+  echo "==========================================================="
+  echo "             cloning powerlevel10k theme                   "
+  echo "-----------------------------------------------------------"
+    git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/themes/powerlevel10k
+fi
+
+
+# Load: config
+source $DOTFILES/zsh/config
+
+# Load: plugins
+source $DOTFILES/zsh/plugins
+
+# Load: oh-my-zsh
+source ${ZSH:-~/.oh-my-zsh}/oh-my-zsh.sh
+
+# Load p10k
+source $DOTFILES/zsh/.p10k.zsh
+
+# Load: aliases
+source $DOTFILES/zsh/aliases
+
+# find path files and load them
+find . -name path.zsh | while read path_file ; do source $path_file ; done
+
+# find everything but path files and completion files and load them
 config_files=($DOTFILES/**/*.zsh)
-
-echo "Sourcing ${#config_files[@]} config files..."
-
-# load path files
-for file in ${(M)config_files:#*/path.zsh}
-do
-  echo "loading path file: $file"
-  source $file
-done
-
-# load everything but the path and completion files
 for file in ${${config_files:#*/path.zsh}:#*/completion.zsh}
 do
-  echo "loading config file: $file"
   source $file
 done
 
-# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
-# Initialization code that may require console input (password prompts, [y/n]
-# confirmations, etc.) must go above this block; everything else may go below.
-ZSH_THEME="powerlevel10k/powerlevel10k"
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-fi
-# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
-[[ ! -f POWERLEVEL_CONFIG_PATH ]] || source POWERLEVEL_CONFIG_PATH
-
-plugins=(
-  git
-  zsh-completions
-  zsh-syntax-highlighting
-  zsh-autosuggestions
-)
-
-source ${ZSH:-~/.oh-my-zsh}/oh-my-zsh.sh
 autoload -U compinit promptinit; compinit promptinit
