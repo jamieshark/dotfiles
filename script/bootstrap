@@ -162,6 +162,8 @@ if [[ -n "$CODESPACES" ]]; then
   # overwrite files if in codespaces to prevent hanging creation script
   install_dotfiles true
 
+  source $DOTFILES_ROOT/.zshrc
+
   echo ''
   echo '  Codespaces setup finished!'
 # If we're on a Mac, let's install and setup other deps
