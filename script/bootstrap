@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env zsh
 #
 # bootstrap creates symlinks for all dotfiles in this directory to $HOME
 
