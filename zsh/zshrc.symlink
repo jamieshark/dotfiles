@@ -10,12 +10,15 @@ if [[ -n "$CODESPACES" ]]; then
   exec zsh
 else
   export DOTFILES=$HOME/.dotfiles
+  # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+  # Initialization code that may require console input (password prompts, [y/n]
+  # confirmations, etc.) must go above this block; everything else may go below.
+  if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+    source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+  fi
 
   # install oh-my-zsh and p10k if it isn't there
   source $DOTFILES/zsh/install
-
-  # Load: oh-my-zsh
-  source ${ZSH:-~/.oh-my-zsh}/oh-my-zsh.sh
 
   # Load: plugins
   source $DOTFILES/zsh/plugins
@@ -23,7 +26,11 @@ else
   # Load p10k
   POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true
   ZSH_THEME="powerlevel10k/powerlevel10k"
-  source $DOTFILES/zsh/.p10k.zsh-theme
+
+  # Load: oh-my-zsh
+  source ${ZSH:-~/.oh-my-zsh}/oh-my-zsh.sh
+
+  [[ ! -f $DOTFILES/zsh/.p10k.zsh ]] || source $DOTFILES/zsh/.p10k.zsh
 fi
 
 
@@ -38,7 +45,6 @@ config_files=($DOTFILES/**/*.zsh)
 for file in ${${config_files:#*/_path.zsh}:#*/completion.zsh}
 do
   source $file
-  echo $file
 done
 
 autoload -U compinit promptinit; compinit promptinit
