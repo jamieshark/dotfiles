@@ -9,7 +9,7 @@ alias gcbm=createBranchOffMain
 alias gs='git status'
 alias gb='git branch'
 alias gp='git push origin HEAD'
-alias gcm='git commit -am'
+alias gcam='git commit -am'
 
 # gh/gh dev
 alias gh="~/Code/github"
