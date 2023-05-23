@@ -44,7 +44,6 @@ config_files=($DOTFILES/**/*.zsh)
 for file in ${${config_files:#*/_path.zsh}:#*/completion.zsh}
 do
   source $file
-  echo $file
 done
 
 autoload -U compinit promptinit; compinit promptinit
