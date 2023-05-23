@@ -7,7 +7,6 @@ export DOTFILES_ROOT=$(pwd -P)
 
 if [[ -n "$CODESPACES" ]]; then
   export DOTFILES=/workspaces/.codespaces/.persistedshare/dotfiles
-  exec zsh
 else
   export DOTFILES=$HOME/.dotfiles
   # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
@@ -23,16 +22,16 @@ else
   # Load: plugins
   source $DOTFILES/zsh/plugins
 
-  # Load p10k
+  # Load: p10k
   POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true
   ZSH_THEME="powerlevel10k/powerlevel10k"
 
   # Load: oh-my-zsh
   source ${ZSH:-~/.oh-my-zsh}/oh-my-zsh.sh
 
+  # Load: p10k theme
   [[ ! -f $DOTFILES/zsh/.p10k.zsh ]] || source $DOTFILES/zsh/.p10k.zsh
 fi
-
 
 # Load: aliases
 source $DOTFILES/zsh/aliases
@@ -45,6 +44,7 @@ config_files=($DOTFILES/**/*.zsh)
 for file in ${${config_files:#*/_path.zsh}:#*/completion.zsh}
 do
   source $file
+  if [[ -n "$CODESPACES" ]] || echo $file
 done
 
 autoload -U compinit promptinit; compinit promptinit
