@@ -3,7 +3,7 @@
 # Install custom plugins if they aren't there
 for plugin in zsh-completions zsh-syntax-highlighting zsh-autosuggestions
 do
-  if [[ ! -d $ZSH/custom/plugins/$plugin ]]
+  if [[ ! -d ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/$plugin ]]
   then
     git clone https://github.com/zsh-users/$plugin ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/$plugin
   fi
