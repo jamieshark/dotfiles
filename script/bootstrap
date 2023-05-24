@@ -165,6 +165,8 @@ if [[ -n "$CODESPACES" ]]; then
   cat $DOTFILES_ROOT/zsh/zshrc.symlink > $HOME/.zshrc
   cat $DOTFILES_ROOT/zsh/.p10k.zsh > $HOME/.p10k.zsh
 
+  source $HOME/.zshrc
+
   echo ''
   echo '  Codespaces setup finished!'
 # If we're on a Mac, let's install and setup other deps
