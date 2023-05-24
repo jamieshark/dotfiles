@@ -7,6 +7,16 @@ export DOTFILES_ROOT=$(pwd -P)
 
 if [[ -n "$CODESPACES" ]]; then
   export DOTFILES=/workspaces/.codespaces/.persistedshare/dotfiles
+
+  # Initialization code that may require console input (password prompts, [y/n]
+  # confirmations, etc.) must go above this block; everything else may go below.
+  if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+    source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+  fi
+
+  # Load: p10k
+  POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true
+  ZSH_THEME="powerlevel10k/powerlevel10k"
 else
   export DOTFILES=$HOME/.dotfiles
   # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.

@@ -160,10 +160,10 @@ install_mac_deps () {
 
 if [[ -n "$CODESPACES" ]]; then
   echo 'Setting up Codespaces dotfiles...'
-  # overwrite files if in codespaces to prevent hanging creation script
-  install_dotfiles true
 
-  source $DOTFILES_ROOT/.zshrc
+  sudo sh -c "$DOTFILES_ROOT/zsh/install"
+  cat $DOTFILES_ROOT/zsh/zshrc.symlink > $HOME/.zshrc
+  cat $DOTFILES_ROOT/zsh/.p10k.zsh > $HOME/.p10k.zsh
 
   echo ''
   echo '  Codespaces setup finished!'
