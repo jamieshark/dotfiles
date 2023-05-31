@@ -19,7 +19,7 @@ if [[ -n "$CODESPACES" ]]; then
 
   # Load: p10k
   POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true
-  ZSH_THEME="powerlevel10k/powerlevel10k"
+  # ZSH_THEME="powerlevel10k/powerlevel10k"
 
   [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 else
