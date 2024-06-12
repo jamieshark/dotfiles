@@ -12,6 +12,7 @@ done
 # define plugins
 plugins=(
   git
+  thefuck
   zsh-completions
   zsh-syntax-highlighting
   zsh-autosuggestions

@@ -10,4 +10,3 @@ alias gs='git status'
 alias gb='git branch'
 alias gp='git push origin HEAD'
 alias gcam='git commit -am'
-
