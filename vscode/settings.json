@@ -1,0 +1,203 @@
+{
+  "[erb]": {
+    "editor.defaultFormatter": "manuelpuyol.erb-linter"
+  },
+  "[go]": {
+    "editor.defaultFormatter": "golang.go"
+  },
+  "[html]": {
+    "editor.defaultFormatter": "vscode.html-language-features"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.showUnused": true
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "editor.formatOnSaveMode": "modifications"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "[less]": {
+    "editor.codeActionsOnSave": {
+      "source.fixAll.stylelint": "explicit"
+    },
+    "editor.defaultFormatter": "stylelint.vscode-stylelint"
+  },
+  "[markdown]": {
+    "editor.codeActionsOnSave": {
+      "source.fixAll.markdownlint": "explicit"
+    },
+    "editor.defaultFormatter": "yzhang.markdown-all-in-one",
+    "editor.wordWrap": "wordWrapColumn"
+  },
+  "[ruby]": {
+    "editor.defaultFormatter": "LoranKloeze.ruby-rubocop-revived"
+  },
+  "[css]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "editor.formatOnSaveMode": "modifications"
+  },
+  "[scss]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "editor.formatOnSaveMode": "modifications"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "editor.formatOnSaveMode": "modifications"
+  },
+  "editor.acceptSuggestionOnEnter": "smart",
+  "editor.accessibilitySupport": "off",
+  "editor.cursorBlinking": "smooth",
+  "editor.detectIndentation": true,
+  "editor.fontFamily": "Hack, 'Fira Code', Menlo, Monaco, 'Courier New', monospace",
+  "editor.fontLigatures": false,
+  "editor.fontSize": 14,
+  "editor.formatOnSave": true,
+  "editor.formatOnSaveMode": "modifications",
+  "editor.inlineSuggest.enabled": true,
+  "editor.rulers": [
+    80
+  ],
+  "editor.suggestSelection": "first",
+  "editor.tabCompletion": "on",
+  "editor.tabSize": 2,
+  "eslint.codeActionsOnSave.mode": "problems",
+  "eslint.format.enable": true,
+  "eslint.options": {
+    "reportUnusedDisableDirectives": "warn"
+  },
+  "eslint.run": "onSave",
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  "files.associations": {
+    "*.go": "go"
+  },
+  "files.exclude": {
+    "**/.DS_Store": true,
+    "**/.git": true,
+    "**/.hg": true,
+    "**/.svn": true,
+    "**/CVS": true,
+    "**/node_modules": true
+  },
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "files.trimTrailingWhitespace": true,
+  "github.codespaces.showPerformanceExplorer": true,
+  // "prettier.configPath": ".prettierrc.js",
+  // "prettier.semi": false,
+  // "prettier.useEditorConfig": false,
+  // "prettier.bracketSpacing": false,
+  // "prettier.trailingComma": "none",
+  // "prettier.singleQuote": true,
+  // "prettier.printWidth": 120,
+  "github.copilot.enable": {
+    "*": true,
+    "markdown": true,
+    "plaintext": true,
+    "yaml": true
+  },
+  "githubIssues.queries": [
+    {
+      "label": "My Issues",
+      "query": "is:open is:issue assignee:${user} archived:false "
+    },
+    {
+      "label": "Created Issues",
+      "query": "author:${user} state:open repo:${owner}/${repository} sort:created-desc"
+    }
+  ],
+  "githubPullRequests.createOnPublishBranch": "never",
+  "githubPullRequests.pullBranch": "never",
+  "githubPullRequests.terminalLinksHandler": "github",
+  "gitlens.showWelcomeOnInstall": false,
+  "gitlens.showWhatsNewAfterUpgrades": false,
+  "markdown.preview.breaks": true,
+  "markdownlint.config": {
+    "MD014": false,
+    "MD033": false
+  },
+  "markdownlint.ignore": [
+    "SERVICEOWNERS"
+  ],
+  "ruby.rubocop.autocorrectOnSave": true,
+  "stylelint.validate": [
+    "css",
+    "html",
+    "less",
+    "markdown",
+    "postcss",
+    "sass",
+    "scss",
+    "source.css.styled",
+    "source.markdown.math",
+    "styled-css"
+  ],
+  "terminal.external.osxExec": "iTerm.app",
+  "terminal.integrated.defaultProfile.linux": "zsh",
+  "terminal.integrated.defaultProfile.osx": "zsh",
+  "terminal.integrated.defaultProfile.windows": "zsh",
+  "terminal.integrated.fontFamily": "MesloLGS NF",
+  "typescript.suggest.paths": false,
+  "vsintellicode.modify.editor.suggestSelection": "automaticallyOverrodeDefaultValue",
+  "window.autoDetectColorScheme": true,
+  "window.title": "${activeEditorMedium}${separator}${rootName}",
+  "workbench.colorCustomizations": {
+    "terminal.ansiBlack": "#002831",
+    "terminal.ansiBlue": "#2176c7",
+    "terminal.ansiBrightBlack": "#006488",
+    "terminal.ansiBrightBlue": "#178ec8",
+    "terminal.ansiBrightCyan": "#00b39e",
+    "terminal.ansiBrightGreen": "#51ef84",
+    "terminal.ansiBrightMagenta": "#e24d8e",
+    "terminal.ansiBrightRed": "#f5163b",
+    "terminal.ansiBrightWhite": "#fcf4dc",
+    "terminal.ansiBrightYellow": "#b27e28",
+    "terminal.ansiCyan": "#259286",
+    "terminal.ansiGreen": "#6cbe6c",
+    "terminal.ansiMagenta": "#c61c6f",
+    "terminal.ansiRed": "#d11c24",
+    "terminal.ansiWhite": "#eae3cb",
+    "terminal.ansiYellow": "#a57706",
+    "terminal.background": "#001e27",
+    "terminal.foreground": "#9cc2c3"
+  },
+  "workbench.colorTheme": "GitHub Dark Default",
+  "workbench.editor.enablePreviewFromCodeNavigation": true,
+  "workbench.editor.highlightModifiedTabs": true,
+  "workbench.editorAssociations": {
+    "git-rebase-todo": "default"
+  },
+  "workbench.iconTheme": "material-icon-theme",
+  "workbench.preferredDarkColorTheme": "GitHub Dark Default",
+  "workbench.preferredLightColorTheme": "GitHub Light Default",
+  "workbench.productIconTheme": "fluent-icons",
+  "workbench.sideBar.location": "right",
+  "workbench.startupEditor": "none",
+  "settingsSync.ignoredExtensions": [
+    "castwide.solargraph",
+    "shopify.ruby-lsp"
+  ],
+  "window.zoomLevel": 1,
+  "[postcss]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "editor.wordWrap": "bounded",
+  "github.copilot.editor.enableAutoCompletions": true
+}
