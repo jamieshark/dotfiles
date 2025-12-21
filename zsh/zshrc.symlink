@@ -7,6 +7,8 @@ export DOTFILES_ROOT=$(pwd -P)
 
 if [[ -n "$CODESPACES" ]]; then
   export DOTFILES=/workspaces/.codespaces/.persistedshare/dotfiles
+  # start zsh
+  sudo chsh "$(id -un)" --shell "/usr/bin/zsh"
 
   # Load: oh-my-zsh
   source ${ZSH:-~/.oh-my-zsh}/oh-my-zsh.sh
@@ -64,5 +66,3 @@ autoload -U compinit promptinit; compinit promptinit
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-
-
