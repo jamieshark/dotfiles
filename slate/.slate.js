@@ -198,6 +198,9 @@ var threeMonitorLayout = S.lay("threeMonitor", {
   Slack: {
     operations: rightBottomHalf,
   },
+  Calendar: {
+    operations: leftFullScreen,
+  },
   "Google Chrome": {
     operations: [
       function (windowObject) {
@@ -224,6 +227,9 @@ var threeMonitorLayout = S.lay("threeMonitor", {
   iTerm: {
     operations: leftFullScreen,
   },
+  Spotify: {
+    operations: leftFullScreen,
+  }
 });
 // 2 monitor layout
 // var twoMonitorLayout = S.lay('twoMonitor', {
@@ -267,7 +273,7 @@ var oneMonitorLayout = S.lay("oneMonitor", {
 });
 
 // Defaults
-S.def(3, threeMonitorLayout);
+// S.def(3, threeMonitorLayout);
 // S.def(2, twoMonitorLayout);
 S.def(1, oneMonitorLayout);
 
@@ -281,7 +287,7 @@ var universalLayout = function () {
   // Should probably make sure the resolutions match but w/e
   S.log("SCREEN COUNT: " + S.screenCount());
   if (S.screenCount() === 3) {
-    threeMonitor.run();
+    // threeMonitor.run();
   } else if (S.screenCount() === 1) {
     oneMonitor.run();
   }
