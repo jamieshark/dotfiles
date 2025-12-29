@@ -161,14 +161,55 @@ install_mac_deps () {
 if [[ -n "$CODESPACES" ]]; then
   echo 'Setting up Codespaces dotfiles...'
 
-  sudo sh -c "$DOTFILES_ROOT/zsh/install"
-  cat $DOTFILES_ROOT/zsh/zshrc.symlink > $HOME/.zshrc
-  cat $DOTFILES_ROOT/zsh/.p10k.zsh > $HOME/.p10k.zsh
+  # Install zsh if not already installed
+  if ! command -v zsh &> /dev/null; then
+    echo "Installing zsh..."
+    sudo apt-get update -qq
+    sudo apt-get install -y zsh
+    success "zsh installed"
+  else
+    success "zsh already installed"
+  fi
 
-  source $HOME/.zshrc
+  # Install fonts for p10k glyphs
+  echo "Installing Meslo Nerd Font for p10k glyphs..."
+  mkdir -p ~/.local/share/fonts
+  if ! cd ~/.local/share/fonts; then
+    fail "Failed to change directory to ~/.local/share/fonts"
+  fi
+  
+  # Download Meslo Nerd Font files
+  font_variants=("Regular" "Bold" "Italic" "Bold Italic")
+  for variant in "${font_variants[@]}"; do
+    curl -fLo "MesloLGS NF ${variant}.ttf" "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20${variant// /%20}.ttf"
+  done
+  
+  # Refresh font cache
+  fc-cache -f
+  cd "$DOTFILES_ROOT" || fail "Failed to return to dotfiles directory"
+  success "Meslo Nerd Font installed"
+
+  # Set ZSH environment variable before running install
+  export ZSH="$HOME/.oh-my-zsh"
+  
+  # Install oh-my-zsh and powerlevel10k
+  bash "$DOTFILES_ROOT/zsh/install"
+  
+  # Symlink zsh configuration files
+  ln -sf "$DOTFILES_ROOT/zsh/zshrc.symlink" "$HOME/.zshrc"
+  ln -sf "$DOTFILES_ROOT/zsh/.p10k.zsh" "$HOME/.p10k.zsh"
+  success "zsh configuration files symlinked"
+
+  # Change default shell to zsh
+  if [ "$SHELL" != "$(which zsh)" ]; then
+    echo "Changing default shell to zsh..."
+    sudo chsh -s "$(which zsh)" "$(whoami)"
+    success "Default shell changed to zsh"
+  fi
 
   echo ''
   echo '  Codespaces setup finished!'
+  echo '  Please restart your terminal or run: exec zsh'
 # If we're on a Mac, let's install and setup other deps
 elif [ "$(uname -s)" == "Darwin" ]
 then
