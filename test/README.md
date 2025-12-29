@@ -64,4 +64,6 @@ Tests run in isolated temporary directories to avoid affecting the actual system
 
 ## Continuous Integration
 
-These tests can be easily integrated into CI/CD pipelines to prevent regressions when modifying dotfiles.
+These tests are automatically run on every push and pull request via GitHub Actions. See [.github/workflows/test.yml](../.github/workflows/test.yml) for the CI configuration.
+
+You can also run the tests locally before pushing to catch issues early.
