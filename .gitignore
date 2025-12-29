@@ -1,3 +1,4 @@
 git/gitconfig.local.symlink
 .vscode/settings.json
 .DS_Store
+test/libs/
