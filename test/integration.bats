@@ -19,14 +19,15 @@ teardown() {
 
 @test "can find all symlink files in repository" {
   cd "$DOTFILES_ROOT"
-  local symlinks=$(find -H "$DOTFILES_ROOT" -maxdepth 2 -name '*.symlink' -not -path '*.git*')
+  
+  # Use mapfile to properly handle find results
+  local -a symlink_array
+  while IFS= read -r -d '' file; do
+    symlink_array+=("$file")
+  done < <(find -H "$DOTFILES_ROOT" -maxdepth 2 -name '*.symlink' -not -path '*.git*' -print0)
   
   # Should find at least the known symlink files
-  [ -n "$symlinks" ]
-  
-  # Count should match expected - use grep to count non-empty lines
-  local count=$(echo "$symlinks" | grep -c .)
-  [ "$count" -ge 4 ]
+  [ "${#symlink_array[@]}" -ge 4 ]
 }
 
 @test "symlink files have valid content" {
@@ -41,13 +42,15 @@ teardown() {
 
 @test "install.sh scripts can be discovered" {
   cd "$DOTFILES_ROOT"
-  local install_scripts=$(find . -name install.sh -not -path '*.git*')
   
-  [ -n "$install_scripts" ]
+  # Use mapfile to properly handle find results
+  local -a install_array
+  while IFS= read -r -d '' file; do
+    install_array+=("$file")
+  done < <(find . -name install.sh -not -path '*.git*' -print0)
   
-  # Should find at least the known install.sh files - use grep to count non-empty lines
-  local count=$(echo "$install_scripts" | grep -c .)
-  [ "$count" -ge 3 ]
+  # Should find at least the known install.sh files
+  [ "${#install_array[@]}" -ge 3 ]
 }
 
 @test "script directory contains required scripts" {
