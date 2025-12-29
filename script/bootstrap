@@ -195,9 +195,10 @@ if [[ -n "$CODESPACES" ]]; then
   # Install oh-my-zsh and powerlevel10k
   bash "$DOTFILES_ROOT/zsh/install"
   
-  # Copy zsh configuration files
-  cat $DOTFILES_ROOT/zsh/zshrc.symlink > $HOME/.zshrc
-  cat $DOTFILES_ROOT/zsh/.p10k.zsh > $HOME/.p10k.zsh
+  # Symlink zsh configuration files
+  ln -sf "$DOTFILES_ROOT/zsh/zshrc.symlink" "$HOME/.zshrc"
+  ln -sf "$DOTFILES_ROOT/zsh/.p10k.zsh" "$HOME/.p10k.zsh"
+  success "zsh configuration files symlinked"
 
   # Change default shell to zsh
   if [ "$SHELL" != "$(which zsh)" ]; then
