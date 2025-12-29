@@ -24,8 +24,8 @@ teardown() {
   # Should find at least the known symlink files
   [ -n "$symlinks" ]
   
-  # Count should match expected
-  local count=$(echo "$symlinks" | wc -l)
+  # Count should match expected - use grep to count non-empty lines
+  local count=$(echo "$symlinks" | grep -c .)
   [ "$count" -ge 4 ]
 }
 
@@ -45,8 +45,8 @@ teardown() {
   
   [ -n "$install_scripts" ]
   
-  # Should find at least the known install.sh files
-  local count=$(echo "$install_scripts" | wc -l)
+  # Should find at least the known install.sh files - use grep to count non-empty lines
+  local count=$(echo "$install_scripts" | grep -c .)
   [ "$count" -ge 3 ]
 }
 

@@ -30,10 +30,10 @@ teardown() {
 # Helper function to extract and source functions from bootstrap
 load_bootstrap_functions() {
   # Extract the link_file function from bootstrap
-  cat "$DOTFILES_ROOT/bootstrap" | sed -n '/^link_file ()/,/^}/p' > "$TEST_DIR/functions.sh"
-  cat "$DOTFILES_ROOT/bootstrap" | sed -n '/^info ()/,/^}/p' >> "$TEST_DIR/functions.sh"
-  cat "$DOTFILES_ROOT/bootstrap" | sed -n '/^success ()/,/^}/p' >> "$TEST_DIR/functions.sh"
-  cat "$DOTFILES_ROOT/bootstrap" | sed -n '/^fail ()/,/^}/p' >> "$TEST_DIR/functions.sh"
+  sed -n '/^link_file ()/,/^}/p' < "$DOTFILES_ROOT/bootstrap" > "$TEST_DIR/functions.sh"
+  sed -n '/^info ()/,/^}/p' < "$DOTFILES_ROOT/bootstrap" >> "$TEST_DIR/functions.sh"
+  sed -n '/^success ()/,/^}/p' < "$DOTFILES_ROOT/bootstrap" >> "$TEST_DIR/functions.sh"
+  sed -n '/^fail ()/,/^}/p' < "$DOTFILES_ROOT/bootstrap" >> "$TEST_DIR/functions.sh"
   
   # Add test-specific overrides
   echo "overwrite_all=false" >> "$TEST_DIR/functions.sh"
