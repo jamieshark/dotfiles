@@ -9,7 +9,7 @@ The installation script will automatically:
 1. Install zsh (if not already installed)
 2. Install Meslo Nerd Font for p10k glyphs
 3. Install oh-my-zsh and powerlevel10k theme
-4. Copy zsh configuration files
+4. Symlink zsh configuration files
 5. Set zsh as the default shell
 
 Run the following:
