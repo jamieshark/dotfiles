@@ -11,6 +11,15 @@ script/bootstrap
 ```
 This will symlink the appropriate files in .dotfiles to your home directory. Everything is configured and tweaked within ~/.dotfiles and changes are reflected immediately once updated profiles are reloaded.
 
+## Testing
+To ensure the dotfiles are installing correctly and prevent regressions:
+```zsh
+cd ~/.dotfiles
+./script/test
+```
+
+See [test/README.md](test/README.md) for more information about the test suite.
+
 # Other inspiration
 https://dotfiles.github.io/inspiration/
 

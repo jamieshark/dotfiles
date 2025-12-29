@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+#
+# Run all BATS tests for dotfiles
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+# Check if BATS is available
+if [ ! -f "test/libs/bats-core/bin/bats" ]; then
+  echo "BATS test framework not found. Installing..."
+  mkdir -p test/libs
+  cd test/libs
+  if [ -d "bats-core" ]; then
+    rm -rf bats-core
+  fi
+  git clone --depth 1 https://github.com/bats-core/bats-core.git
+  cd ../..
+fi
+
+BATS="./test/libs/bats-core/bin/bats"
+
+echo "Running dotfiles tests..."
+echo ""
+
+# Run all test files
+$BATS test/*.bats
+
+echo ""
+echo "All tests completed!"
