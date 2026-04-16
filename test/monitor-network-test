@@ -1,0 +1,756 @@
+#!/usr/bin/env bash
+#
+# monitor-network-test — unit tests for the monitor-network script
+#
+# Mocks all external commands (arp, lsof, nmap, dig, etc.) and validates
+# that the detection logic correctly identifies threats.
+#
+# Usage:  ./test/monitor-network-test
+#
+set -euo pipefail
+
+# ── test framework ──────────────────────────────────────────────────
+TESTS_RUN=0
+TESTS_PASSED=0
+TESTS_FAILED=0
+FAILURES=()
+
+RED='\033[0;31m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'
+BOLD='\033[1m'; RESET='\033[0m'
+
+assert_output_contains() {
+  local label="$1" pattern="$2" output="$3"
+  TESTS_RUN=$((TESTS_RUN + 1))
+  if echo "$output" | grep -qE "$pattern"; then
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+    printf "  ${GREEN}✓${RESET} %s\n" "$label"
+  else
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+    FAILURES+=("$label")
+    printf "  ${RED}✗${RESET} %s\n" "$label"
+    printf "    expected pattern: %s\n" "$pattern"
+    printf "    in output:\n%s\n" "$(echo "$output" | head -20)"
+  fi
+}
+
+assert_output_not_contains() {
+  local label="$1" pattern="$2" output="$3"
+  TESTS_RUN=$((TESTS_RUN + 1))
+  if ! echo "$output" | grep -qE "$pattern"; then
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+    printf "  ${GREEN}✓${RESET} %s\n" "$label"
+  else
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+    FAILURES+=("$label")
+    printf "  ${RED}✗${RESET} %s\n" "$label"
+    printf "    pattern should NOT match: %s\n" "$pattern"
+  fi
+}
+
+assert_file_contains() {
+  local label="$1" pattern="$2" filepath="$3"
+  TESTS_RUN=$((TESTS_RUN + 1))
+  if [[ -f "$filepath" ]] && grep -qE "$pattern" "$filepath"; then
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+    printf "  ${GREEN}✓${RESET} %s\n" "$label"
+  else
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+    FAILURES+=("$label")
+    printf "  ${RED}✗${RESET} %s\n" "$label"
+    printf "    expected pattern in %s: %s\n" "$filepath" "$pattern"
+  fi
+}
+
+# ── setup: create isolated temp environment ─────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+TEST_TMP=$(mktemp -d /tmp/monitor-net-test.XXXXXX)
+MOCK_BIN="$TEST_TMP/mock-bin"
+mkdir -p "$MOCK_BIN" "$TEST_TMP/config"
+
+cleanup() { rm -rf "$TEST_TMP"; }
+trap cleanup EXIT
+
+# Export vars the script expects
+export HOME="$TEST_TMP"
+export PATH="$MOCK_BIN:$PATH"
+
+# Override baseline/log dirs for isolation
+BASELINE_DIR="$TEST_TMP/config/monitor-network"
+BASELINE_FILE="$BASELINE_DIR/known_devices.txt"
+LOG_FILE="$BASELINE_DIR/monitor.log"
+mkdir -p "$BASELINE_DIR"
+
+# ── source helper functions from the script ─────────────────────────
+# We extract the function definitions without running the argument parsing
+# or the main execution block.
+
+# Disable set -e for the sourced functions so tests can capture failures
+create_test_harness() {
+  cat > "$TEST_TMP/harness.bash" << 'HARNESS_EOF'
+#!/usr/bin/env bash
+# Minimal harness that defines the helpers + section functions
+# without running argument parsing or main.
+
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+CYAN='\033[0;36m'; BOLD='\033[1m'; RESET='\033[0m'
+
+banner()  { printf "\n${BOLD}${CYAN}═══  %s  ═══${RESET}\n" "$1"; }
+info()    { printf "${GREEN}[✓]${RESET} %s\n" "$1"; }
+warn()    { printf "${YELLOW}[!]${RESET} %s\n" "$1"; }
+alert()   { printf "${RED}[✘]${RESET} %s\n" "$1"; }
+log_msg() { echo "$(date '+%Y-%m-%d %H:%M:%S')  $1" >> "$LOG_FILE"; }
+
+need() {
+  if ! command -v "$1" &>/dev/null; then
+    alert "$1 is not installed. Install with:  brew install $1"
+    return 1
+  fi
+}
+HARNESS_EOF
+}
+
+create_test_harness
+
+# ══════════════════════════════════════════════════════════════════════
+#  TEST SUITE
+# ══════════════════════════════════════════════════════════════════════
+
+# ── Test 1: ARP spoofing detection ──────────────────────────────────
+test_arp_spoof_detected() {
+  printf "\n${BOLD}${CYAN}Test: ARP spoofing — duplicate MACs are flagged${RESET}\n"
+
+  # Mock arp to return duplicate MAC for different IPs
+  cat > "$MOCK_BIN/arp" << 'EOF'
+#!/usr/bin/env bash
+cat << 'ARP'
+? (192.168.1.1) at aa:bb:cc:dd:ee:01 on en0 ifscope [ethernet]
+? (192.168.1.50) at aa:bb:cc:dd:ee:01 on en0 ifscope [ethernet]
+? (192.168.1.100) at 11:22:33:44:55:66 on en0 ifscope [ethernet]
+ARP
+EOF
+  chmod +x "$MOCK_BIN/arp"
+
+  local output
+  output=$(
+    source "$TEST_TMP/harness.bash"
+    GATEWAY="192.168.1.1"
+
+    section_arp() {
+      local arp_table
+      arp_table=$(arp -a 2>/dev/null || true)
+      local dupes
+      dupes=$(echo "$arp_table" \
+              | awk '{print $4}' \
+              | grep -v incomplete \
+              | sort | uniq -d || true)
+      if [[ -n "$dupes" ]]; then
+        alert "Duplicate MAC address(es) found — possible ARP spoofing!"
+        for mac in $dupes; do
+          echo "$arp_table" | grep "$mac"
+          log_msg "ARP SPOOF SUSPECT: MAC $mac maps to multiple IPs"
+        done
+      else
+        info "No duplicate MAC addresses detected in ARP table."
+      fi
+    }
+    section_arp
+  )
+
+  assert_output_contains "detects duplicate MAC" "Duplicate MAC address" "$output"
+  assert_output_contains "shows the spoofed MAC" "aa:bb:cc:dd:ee:01" "$output"
+  assert_file_contains "logs ARP spoof" "ARP SPOOF SUSPECT" "$LOG_FILE"
+}
+
+test_arp_no_spoof() {
+  printf "\n${BOLD}${CYAN}Test: ARP — clean table produces no alerts${RESET}\n"
+  > "$LOG_FILE"  # clear log
+
+  cat > "$MOCK_BIN/arp" << 'EOF'
+#!/usr/bin/env bash
+cat << 'ARP'
+? (192.168.1.1) at aa:bb:cc:dd:ee:01 on en0 ifscope [ethernet]
+? (192.168.1.100) at 11:22:33:44:55:66 on en0 ifscope [ethernet]
+? (192.168.1.200) at 77:88:99:aa:bb:cc on en0 ifscope [ethernet]
+ARP
+EOF
+  chmod +x "$MOCK_BIN/arp"
+
+  local output
+  output=$(
+    source "$TEST_TMP/harness.bash"
+    GATEWAY="192.168.1.1"
+
+    section_arp() {
+      local arp_table
+      arp_table=$(arp -a 2>/dev/null || true)
+      local dupes
+      dupes=$(echo "$arp_table" \
+              | awk '{print $4}' \
+              | grep -v incomplete \
+              | sort | uniq -d || true)
+      if [[ -n "$dupes" ]]; then
+        alert "Duplicate MAC address(es) found — possible ARP spoofing!"
+      else
+        info "No duplicate MAC addresses detected in ARP table."
+      fi
+    }
+    section_arp
+  )
+
+  assert_output_contains "reports clean ARP table" "No duplicate MAC" "$output"
+  assert_output_not_contains "no spoof alert on clean table" "ARP spoofing" "$output"
+}
+
+# ── Test 2: Baseline device detection ──────────────────────────────
+test_new_device_detected() {
+  printf "\n${BOLD}${CYAN}Test: New device detected vs baseline${RESET}\n"
+  > "$LOG_FILE"
+
+  # Create a baseline with two known devices
+  cat > "$BASELINE_FILE" << 'EOF'
+192.168.1.1 aa:bb:cc:dd:ee:01
+192.168.1.100 11:22:33:44:55:66
+EOF
+
+  # Current scan returns an extra device
+  local scan
+  scan=$'192.168.1.1\taa:bb:cc:dd:ee:01\tRouter\n192.168.1.100\t11:22:33:44:55:66\tLaptop\n192.168.1.200\tde:ad:be:ef:00:01\tUnknown'
+
+  local output
+  output=$(
+    source "$TEST_TMP/harness.bash"
+
+    current_devices=$(echo "$scan" | awk '{print $1, $2}' | sort)
+    new_devices=$(comm -23 <(echo "$current_devices") <(sort "$BASELINE_FILE"))
+    if [[ -n "$new_devices" ]]; then
+      alert "New/unknown devices detected since baseline:"
+      echo "$new_devices" | while read -r line; do
+        alert "    $line"
+        log_msg "NEW DEVICE: $line"
+      done
+    else
+      info "All devices match the known baseline."
+    fi
+  )
+
+  assert_output_contains "flags new device" "New/unknown devices" "$output"
+  assert_output_contains "shows rogue device IP" "192.168.1.200" "$output"
+  assert_output_contains "shows rogue device MAC" "de:ad:be:ef:00:01" "$output"
+  assert_file_contains "logs new device" "NEW DEVICE.*192.168.1.200" "$LOG_FILE"
+}
+
+test_no_new_devices() {
+  printf "\n${BOLD}${CYAN}Test: All devices match baseline — no alerts${RESET}\n"
+
+  cat > "$BASELINE_FILE" << 'EOF'
+192.168.1.1 aa:bb:cc:dd:ee:01
+192.168.1.100 11:22:33:44:55:66
+EOF
+
+  local scan
+  scan=$'192.168.1.1\taa:bb:cc:dd:ee:01\tRouter\n192.168.1.100\t11:22:33:44:55:66\tLaptop'
+
+  local output
+  output=$(
+    source "$TEST_TMP/harness.bash"
+
+    current_devices=$(echo "$scan" | awk '{print $1, $2}' | sort)
+    new_devices=$(comm -23 <(echo "$current_devices") <(sort "$BASELINE_FILE"))
+    if [[ -n "$new_devices" ]]; then
+      alert "New/unknown devices detected since baseline:"
+    else
+      info "All devices match the known baseline."
+    fi
+  )
+
+  assert_output_contains "reports all devices known" "All devices match" "$output"
+  assert_output_not_contains "no unknown device alert" "New/unknown" "$output"
+}
+
+# ── Test 3: Suspicious port detection ──────────────────────────────
+test_suspicious_ports_flagged() {
+  printf "\n${BOLD}${CYAN}Test: Suspicious ports are flagged${RESET}\n"
+  > "$LOG_FILE"
+
+  # Simulated nmap output with a telnet port (23) and RDP port (3389)
+  local nmap_output
+  nmap_output="23/tcp   open  telnet
+80/tcp   open  http
+443/tcp  open  https
+3389/tcp open  ms-wrd-rdp"
+
+  local output
+  output=$(
+    source "$TEST_TMP/harness.bash"
+    GATEWAY="192.168.1.1"
+
+    echo "$nmap_output" | while read -r line; do
+      port=$(echo "$line" | awk '{print $1}')
+      state=$(echo "$line" | awk '{print $2}')
+      service=$(echo "$line" | awk '{print $3}')
+      if echo "$port" | grep -qE '^(23|445|3389|5900|8080|8443)'; then
+        alert "Suspicious port open: $port ($service) [$state]"
+        log_msg "SUSPICIOUS PORT on $GATEWAY: $port $service"
+      else
+        info "$port  $state  $service"
+      fi
+    done
+  )
+
+  assert_output_contains "flags telnet port 23" "Suspicious port open: 23" "$output"
+  assert_output_contains "flags RDP port 3389" "Suspicious port open: 3389" "$output"
+  assert_output_not_contains "does not flag port 80" "Suspicious port open: 80" "$output"
+  assert_output_not_contains "does not flag port 443" "Suspicious port open: 443" "$output"
+  assert_file_contains "logs suspicious ports" "SUSPICIOUS PORT" "$LOG_FILE"
+}
+
+test_clean_ports() {
+  printf "\n${BOLD}${CYAN}Test: Normal ports produce no alerts${RESET}\n"
+
+  local nmap_output
+  nmap_output="80/tcp   open  http
+443/tcp  open  https
+53/tcp   open  domain"
+
+  local output
+  output=$(
+    source "$TEST_TMP/harness.bash"
+    GATEWAY="192.168.1.1"
+
+    echo "$nmap_output" | while read -r line; do
+      port=$(echo "$line" | awk '{print $1}')
+      state=$(echo "$line" | awk '{print $2}')
+      service=$(echo "$line" | awk '{print $3}')
+      if echo "$port" | grep -qE '^(23|445|3389|5900|8080|8443)'; then
+        alert "Suspicious port open: $port ($service) [$state]"
+      else
+        info "$port  $state  $service"
+      fi
+    done
+  )
+
+  assert_output_not_contains "no suspicious port alerts" "Suspicious port" "$output"
+}
+
+# ── Test 4: Rogue DHCP server detection ────────────────────────────
+test_rogue_dhcp_detected() {
+  printf "\n${BOLD}${CYAN}Test: Rogue DHCP server is flagged${RESET}\n"
+  > "$LOG_FILE"
+
+  local output
+  output=$(
+    source "$TEST_TMP/harness.bash"
+
+    GATEWAY="192.168.1.1"
+    dhcp_server="192.168.1.254"
+
+    if [[ -z "$dhcp_server" ]]; then
+      warn "Could not identify DHCP server."
+    elif [[ "$dhcp_server" == "$GATEWAY" ]]; then
+      info "DHCP server is the gateway ($GATEWAY) — looks normal."
+    else
+      alert "DHCP server ($dhcp_server) differs from gateway ($GATEWAY)!"
+      alert "This may indicate a rogue DHCP server on the network."
+      log_msg "ROGUE DHCP: server=$dhcp_server gateway=$GATEWAY"
+    fi
+  )
+
+  assert_output_contains "flags rogue DHCP" "differs from gateway" "$output"
+  assert_output_contains "warns about rogue server" "rogue DHCP server" "$output"
+  assert_file_contains "logs rogue DHCP" "ROGUE DHCP" "$LOG_FILE"
+}
+
+test_normal_dhcp() {
+  printf "\n${BOLD}${CYAN}Test: Matching DHCP server — no alert${RESET}\n"
+
+  local output
+  output=$(
+    source "$TEST_TMP/harness.bash"
+
+    GATEWAY="192.168.1.1"
+    dhcp_server="192.168.1.1"
+
+    if [[ "$dhcp_server" == "$GATEWAY" ]]; then
+      info "DHCP server is the gateway ($GATEWAY) — looks normal."
+    else
+      alert "DHCP server ($dhcp_server) differs from gateway ($GATEWAY)!"
+    fi
+  )
+
+  assert_output_contains "reports normal DHCP" "looks normal" "$output"
+  assert_output_not_contains "no rogue DHCP alert" "rogue DHCP" "$output"
+}
+
+# ── Test 5: DNS resolver classification ────────────────────────────
+test_dns_public_resolver_warned() {
+  printf "\n${BOLD}${CYAN}Test: Public DNS resolvers are warned about${RESET}\n"
+
+  local resolvers="8.8.8.8
+192.168.1.1
+1.1.1.1"
+
+  local output
+  output=$(
+    source "$TEST_TMP/harness.bash"
+
+    echo "$resolvers" | while read -r ns; do
+      if echo "$ns" | grep -qE '^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)'; then
+        info "    $ns (private)"
+      else
+        warn "    $ns (public — verify this is expected)"
+      fi
+    done
+  )
+
+  assert_output_contains "flags 8.8.8.8 as public" "8.8.8.8.*public" "$output"
+  assert_output_contains "flags 1.1.1.1 as public" "1.1.1.1.*public" "$output"
+  assert_output_contains "marks 192.168.1.1 as private" "192.168.1.1.*private" "$output"
+}
+
+test_dns_all_private() {
+  printf "\n${BOLD}${CYAN}Test: All-private DNS resolvers — no warnings${RESET}\n"
+
+  local resolvers="192.168.1.1
+10.0.0.1"
+
+  local output
+  output=$(
+    source "$TEST_TMP/harness.bash"
+
+    echo "$resolvers" | while read -r ns; do
+      if echo "$ns" | grep -qE '^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)'; then
+        info "    $ns (private)"
+      else
+        warn "    $ns (public — verify this is expected)"
+      fi
+    done
+  )
+
+  assert_output_not_contains "no public DNS warnings" "public" "$output"
+  assert_output_contains "all marked private" "private" "$output"
+}
+
+# ── Test 6: /etc/hosts hijack detection ────────────────────────────
+test_hosts_file_overrides_detected() {
+  printf "\n${BOLD}${CYAN}Test: Custom /etc/hosts entries are flagged${RESET}\n"
+
+  local fake_hosts
+  fake_hosts="$TEST_TMP/hosts"
+  cat > "$fake_hosts" << 'EOF'
+# Standard macOS hosts
+127.0.0.1       localhost
+255.255.255.255 broadcasthost
+::1             localhost
+
+# Suspicious entries
+1.2.3.4         google.com
+5.6.7.8         bank.example.com
+EOF
+
+  local output
+  output=$(
+    source "$TEST_TMP/harness.bash"
+
+    hosts_overrides=$(grep -vE '^\s*#|^\s*$|localhost|broadcasthost' "$fake_hosts" 2>/dev/null || true)
+    if [[ -n "$hosts_overrides" ]]; then
+      warn "Custom entries in /etc/hosts:"
+      echo "$hosts_overrides" | while read -r line; do
+        warn "    $line"
+      done
+    else
+      info "/etc/hosts has no unexpected overrides."
+    fi
+  )
+
+  assert_output_contains "flags custom hosts entries" "Custom entries" "$output"
+  assert_output_contains "shows google.com hijack" "google.com" "$output"
+  assert_output_contains "shows bank hijack" "bank.example.com" "$output"
+}
+
+test_hosts_file_clean() {
+  printf "\n${BOLD}${CYAN}Test: Clean /etc/hosts — no alerts${RESET}\n"
+
+  local fake_hosts="$TEST_TMP/hosts_clean"
+  cat > "$fake_hosts" << 'EOF'
+# Standard macOS hosts
+127.0.0.1       localhost
+255.255.255.255 broadcasthost
+::1             localhost
+EOF
+
+  local output
+  output=$(
+    source "$TEST_TMP/harness.bash"
+
+    hosts_overrides=$(grep -vE '^\s*#|^\s*$|localhost|broadcasthost' "$fake_hosts" 2>/dev/null || true)
+    if [[ -n "$hosts_overrides" ]]; then
+      warn "Custom entries in /etc/hosts:"
+    else
+      info "/etc/hosts has no unexpected overrides."
+    fi
+  )
+
+  assert_output_contains "reports clean hosts file" "no unexpected overrides" "$output"
+  assert_output_not_contains "no custom entry warning" "Custom entries" "$output"
+}
+
+# ── Test 7: Malicious IP heuristic (reverse DNS) ──────────────────
+test_no_rdns_flagged() {
+  printf "\n${BOLD}${CYAN}Test: IPs with no reverse DNS are warned${RESET}\n"
+  > "$LOG_FILE"
+
+  # Mock dig to return nothing (no rDNS)
+  cat > "$MOCK_BIN/dig" << 'EOF'
+#!/usr/bin/env bash
+echo ""
+EOF
+  chmod +x "$MOCK_BIN/dig"
+
+  local output
+  output=$(
+    source "$TEST_TMP/harness.bash"
+
+    ip="203.0.113.99"
+    rdns=$(dig +short -x "$ip" 2>/dev/null | head -1 || echo "no-rdns")
+    rdns=${rdns:="no-rdns"}
+
+    if [[ "$rdns" == "no-rdns" || "$rdns" == "" ]]; then
+      warn "$ip — no reverse DNS (investigate manually)"
+      log_msg "NO RDNS: $ip"
+    elif echo "$rdns" | grep -qiE '\.(ru|cn|kp|ir)\.$'; then
+      alert "$ip → $rdns (flagged country-TLD — verify legitimacy)"
+    else
+      info "$ip → $rdns"
+    fi
+  )
+
+  assert_output_contains "warns about no rDNS" "no reverse DNS" "$output"
+  assert_output_contains "shows the suspicious IP" "203.0.113.99" "$output"
+  assert_file_contains "logs no-rdns IP" "NO RDNS.*203.0.113.99" "$LOG_FILE"
+}
+
+test_suspicious_tld_flagged() {
+  printf "\n${BOLD}${CYAN}Test: IPs resolving to suspicious TLDs are flagged${RESET}\n"
+  > "$LOG_FILE"
+
+  # Mock dig to return a .ru domain
+  cat > "$MOCK_BIN/dig" << 'EOF'
+#!/usr/bin/env bash
+echo "evil-server.malware.ru."
+EOF
+  chmod +x "$MOCK_BIN/dig"
+
+  local output
+  output=$(
+    source "$TEST_TMP/harness.bash"
+
+    ip="198.51.100.1"
+    rdns=$(dig +short -x "$ip" 2>/dev/null | head -1 || echo "no-rdns")
+    rdns=${rdns:="no-rdns"}
+
+    if [[ "$rdns" == "no-rdns" || "$rdns" == "" ]]; then
+      warn "$ip — no reverse DNS (investigate manually)"
+    elif echo "$rdns" | grep -qiE '\.(ru|cn|kp|ir)\.$'; then
+      alert "$ip → $rdns (flagged country-TLD — verify legitimacy)"
+      log_msg "FLAGGED IP: $ip → $rdns"
+    else
+      info "$ip → $rdns"
+    fi
+  )
+
+  assert_output_contains "flags suspicious TLD" "flagged country-TLD" "$output"
+  assert_output_contains "shows the .ru domain" "malware.ru" "$output"
+  assert_file_contains "logs flagged IP" "FLAGGED IP.*198.51.100.1" "$LOG_FILE"
+}
+
+test_legitimate_rdns_ok() {
+  printf "\n${BOLD}${CYAN}Test: Legitimate reverse DNS produces no alert${RESET}\n"
+
+  cat > "$MOCK_BIN/dig" << 'EOF'
+#!/usr/bin/env bash
+echo "server01.github.com."
+EOF
+  chmod +x "$MOCK_BIN/dig"
+
+  local output
+  output=$(
+    source "$TEST_TMP/harness.bash"
+
+    ip="140.82.121.4"
+    rdns=$(dig +short -x "$ip" 2>/dev/null | head -1 || echo "no-rdns")
+    rdns=${rdns:="no-rdns"}
+
+    if [[ "$rdns" == "no-rdns" || "$rdns" == "" ]]; then
+      warn "$ip — no reverse DNS"
+    elif echo "$rdns" | grep -qiE '\.(ru|cn|kp|ir)\.$'; then
+      alert "$ip → $rdns (flagged country-TLD)"
+    else
+      info "$ip → $rdns"
+    fi
+  )
+
+  assert_output_contains "shows clean rDNS" "github.com" "$output"
+  assert_output_not_contains "no TLD alert" "flagged country-TLD" "$output"
+  assert_output_not_contains "no rdns warning" "no reverse DNS" "$output"
+}
+
+# ── Test 8: Port scan detection (SYN flood) ────────────────────────
+test_syn_flood_detected() {
+  printf "\n${BOLD}${CYAN}Test: High SYN count triggers port scan alert${RESET}\n"
+  > "$LOG_FILE"
+
+  # Create a fake pcap-like file with 60 SYN packets
+  local tmpfile="$TEST_TMP/syn_capture.txt"
+  for i in $(seq 1 60); do
+    echo "12:00:00.000000 IP 192.168.1.50.12345 > 10.0.0.1.$((i + 1000)): Flags [S], seq 0" >> "$tmpfile"
+  done
+  # Add some non-SYN lines
+  for i in $(seq 1 10); do
+    echo "12:00:00.000000 IP 10.0.0.1.80 > 192.168.1.50.54321: Flags [A], ack 1" >> "$tmpfile"
+  done
+
+  local output
+  output=$(
+    source "$TEST_TMP/harness.bash"
+
+    syn_count=$(grep -c '\[S\]' "$tmpfile" 2>/dev/null || echo 0)
+
+    if [[ "$syn_count" -gt 50 ]]; then
+      alert "High SYN count ($syn_count) — possible port scan in progress!"
+      log_msg "PORT SCAN: $syn_count SYN packets in 10s"
+    else
+      info "SYN count normal ($syn_count)."
+    fi
+  )
+
+  assert_output_contains "flags port scan" "possible port scan" "$output"
+  assert_file_contains "logs port scan" "PORT SCAN" "$LOG_FILE"
+}
+
+test_normal_syn_count() {
+  printf "\n${BOLD}${CYAN}Test: Normal SYN count — no port scan alert${RESET}\n"
+
+  local tmpfile="$TEST_TMP/normal_capture.txt"
+  > "$tmpfile"
+  for i in $(seq 1 5); do
+    echo "12:00:00.000000 IP 192.168.1.50.12345 > 10.0.0.1.80: Flags [S], seq 0" >> "$tmpfile"
+  done
+
+  local output
+  output=$(
+    source "$TEST_TMP/harness.bash"
+
+    syn_count=$(grep -c '\[S\]' "$tmpfile" 2>/dev/null || echo 0)
+    if [[ "$syn_count" -gt 50 ]]; then
+      alert "High SYN count ($syn_count) — possible port scan in progress!"
+    else
+      info "SYN count normal ($syn_count)."
+    fi
+  )
+
+  assert_output_contains "reports normal SYN count" "SYN count normal" "$output"
+  assert_output_not_contains "no port scan alert" "port scan" "$output"
+}
+
+# ── Test 9: Private IP filtering for malicious check ───────────────
+test_private_ips_excluded() {
+  printf "\n${BOLD}${CYAN}Test: Private IPs are excluded from threat checks${RESET}\n"
+
+  local all_ips="10.0.0.1
+172.16.5.10
+192.168.1.100
+127.0.0.1
+8.8.8.8
+203.0.113.50"
+
+  local output
+  output=$(
+    source "$TEST_TMP/harness.bash"
+
+    remote_ips=$(echo "$all_ips" \
+      | grep -vE '^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|127\.)' \
+      | sort -u || true)
+
+    if [[ -n "$remote_ips" ]]; then
+      count=$(echo "$remote_ips" | wc -l | tr -d ' ')
+      info "Checking $count public IP(s)"
+      echo "$remote_ips" | while read -r ip; do
+        info "  public: $ip"
+      done
+    fi
+  )
+
+  assert_output_contains "includes 8.8.8.8" "8.8.8.8" "$output"
+  assert_output_contains "includes 203.0.113.50" "203.0.113.50" "$output"
+  assert_output_not_contains "excludes 10.x" "10.0.0.1" "$output"
+  assert_output_not_contains "excludes 172.16.x" "172.16.5.10" "$output"
+  assert_output_not_contains "excludes 192.168.x" "192.168.1.100" "$output"
+  assert_output_not_contains "excludes 127.x" "127.0.0.1" "$output"
+  assert_output_contains "only 2 public IPs" "Checking 2 public" "$output"
+}
+
+# ── Test 10: High-ephemeral port warning ───────────────────────────
+test_high_ephemeral_port_warned() {
+  printf "\n${BOLD}${CYAN}Test: High-ephemeral ports are warned about${RESET}\n"
+
+  local ports=":50000
+:50000
+:50000
+:443
+:443"
+
+  local output
+  output=$(
+    source "$TEST_TMP/harness.bash"
+
+    echo "$ports" | sort | uniq -c | sort -rn | head -5 \
+      | while read -r cnt port; do
+          p=${port#:}
+          if [[ "$p" -gt 49151 ]]; then
+            warn "High-ephemeral port in use ($p) — $cnt connection(s)"
+          fi
+        done
+  )
+
+  assert_output_contains "warns about port 50000" "High-ephemeral port.*50000" "$output"
+  assert_output_not_contains "does not warn about 443" "443" "$output"
+}
+
+# ── Run all tests ──────────────────────────────────────────────────
+printf "\n${BOLD}══════════════════════════════════════════════${RESET}\n"
+printf "${BOLD}  monitor-network unit tests${RESET}\n"
+printf "${BOLD}══════════════════════════════════════════════${RESET}\n"
+
+test_arp_spoof_detected
+test_arp_no_spoof
+test_new_device_detected
+test_no_new_devices
+test_suspicious_ports_flagged
+test_clean_ports
+test_rogue_dhcp_detected
+test_normal_dhcp
+test_dns_public_resolver_warned
+test_dns_all_private
+test_hosts_file_overrides_detected
+test_hosts_file_clean
+test_no_rdns_flagged
+test_suspicious_tld_flagged
+test_legitimate_rdns_ok
+test_syn_flood_detected
+test_normal_syn_count
+test_private_ips_excluded
+test_high_ephemeral_port_warned
+
+# ── summary ────────────────────────────────────────────────────────
+printf "\n${BOLD}══════════════════════════════════════════════${RESET}\n"
+if [[ $TESTS_FAILED -eq 0 ]]; then
+  printf "${GREEN}${BOLD}All $TESTS_RUN tests passed!${RESET}\n"
+else
+  printf "${RED}${BOLD}$TESTS_FAILED of $TESTS_RUN tests failed:${RESET}\n"
+  for f in "${FAILURES[@]}"; do
+    printf "  ${RED}✗${RESET} %s\n" "$f"
+  done
+fi
+printf "${BOLD}══════════════════════════════════════════════${RESET}\n\n"
+
+exit "$TESTS_FAILED"

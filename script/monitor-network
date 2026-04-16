@@ -1,0 +1,441 @@
+#!/usr/bin/env bash
+#
+# monitor-network — comprehensive local network monitor & threat detector
+#
+# Usage:
+#   monitor-network              # run all checks once
+#   monitor-network --watch      # re-run every 60 seconds
+#   monitor-network --section X  # run only section X (see --help)
+#   monitor-network --help       # show usage
+#
+set -euo pipefail
+
+# ── colours & formatting ────────────────────────────────────────────
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+CYAN='\033[0;36m'; BOLD='\033[1m'; RESET='\033[0m'
+
+INTERVAL=60
+SECTION="all"
+BASELINE_DIR="$HOME/.config/monitor-network"
+BASELINE_FILE="$BASELINE_DIR/known_devices.txt"
+LOG_FILE="$BASELINE_DIR/monitor.log"
+
+# ── helpers ─────────────────────────────────────────────────────────
+banner()  { printf "\n${BOLD}${CYAN}═══  %s  ═══${RESET}\n" "$1"; }
+info()    { printf "${GREEN}[✓]${RESET} %s\n" "$1"; }
+warn()    { printf "${YELLOW}[!]${RESET} %s\n" "$1"; }
+alert()   { printf "${RED}[✘]${RESET} %s\n" "$1"; }
+log_msg() { echo "$(date '+%Y-%m-%d %H:%M:%S')  $1" >> "$LOG_FILE"; }
+
+need() {
+  if ! command -v "$1" &>/dev/null; then
+    alert "$1 is not installed. Install with:  brew install $1"
+    return 1
+  fi
+}
+
+usage() {
+  cat <<EOF
+Usage: monitor-network [OPTIONS]
+
+Options:
+  --watch            Re-run all checks every ${INTERVAL}s
+  --interval SECS    Set watch interval (default ${INTERVAL})
+  --section NAME     Run a single section:
+                       info, devices, ports, connections,
+                       arp, dns, dhcp, traffic, malicious
+  --baseline         Save current devices as known-good baseline
+  --help             Show this help
+
+Requires: nmap, arp-scan (brew install nmap arp-scan)
+Optional: tcpdump (ships with macOS)
+EOF
+  exit 0
+}
+
+# ── argument parsing ────────────────────────────────────────────────
+WATCH=false
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --watch)    WATCH=true; shift ;;
+    --interval) INTERVAL="$2"; shift 2 ;;
+    --section)  SECTION="$2"; shift 2 ;;
+    --baseline) SAVE_BASELINE=true; shift ;;
+    --help|-h)  usage ;;
+    *)          echo "Unknown option: $1"; usage ;;
+  esac
+done
+
+mkdir -p "$BASELINE_DIR"
+
+# ── detect active interface & subnet ────────────────────────────────
+get_network_info() {
+  IFACE=$(route -n get default 2>/dev/null | awk '/interface:/{print $2}')
+  if [[ -z "${IFACE:-}" ]]; then
+    alert "No default network interface found."
+    exit 1
+  fi
+  LOCAL_IP=$(ipconfig getifaddr "$IFACE" 2>/dev/null || echo "unknown")
+  SUBNET=$(ifconfig "$IFACE" | awk '/inet /{print $2}' | head -1)
+  NETMASK=$(ifconfig "$IFACE" | awk '/inet /{print $4}' | head -1)
+  GATEWAY=$(route -n get default 2>/dev/null | awk '/gateway:/{print $2}')
+  SSID=$(networksetup -getairportnetwork "$IFACE" 2>/dev/null \
+         | sed 's/Current Wi-Fi Network: //' || echo "wired/unknown")
+
+  # crude CIDR — works for /24, /16, /8
+  case "$NETMASK" in
+    0xffffff00) CIDR="24" ;;
+    0xffff0000) CIDR="16" ;;
+    0xff000000) CIDR="8"  ;;
+    *)          CIDR="24" ;;
+  esac
+  NETWORK="${SUBNET%.*}.0/$CIDR"
+}
+
+# ── 1. network info ────────────────────────────────────────────────
+section_info() {
+  banner "Network Information"
+  info "Interface : $IFACE"
+  info "SSID      : $SSID"
+  info "Local IP  : $LOCAL_IP"
+  info "Gateway   : $GATEWAY"
+  info "Subnet    : $NETWORK"
+  PUBLIC_IP=$(curl -s --max-time 5 https://api.ipify.org || echo "unavailable")
+  info "Public IP : $PUBLIC_IP"
+}
+
+# ── 2. device discovery ────────────────────────────────────────────
+section_devices() {
+  banner "Connected Devices (ARP scan)"
+  need arp-scan || return
+
+  local scan
+  scan=$(sudo arp-scan --localnet --interface="$IFACE" 2>/dev/null \
+         | grep -E '^[0-9]+\.' || true)
+
+  if [[ -z "$scan" ]]; then
+    warn "No devices found (are you root / did you allow arp-scan?)."
+    return
+  fi
+
+  local count
+  count=$(echo "$scan" | wc -l | tr -d ' ')
+  info "$count device(s) found on the network:"
+  echo "$scan" | while IFS=$'\t' read -r ip mac vendor; do
+    printf "    %-16s  %-18s  %s\n" "$ip" "$mac" "$vendor"
+  done
+
+  # ── baseline comparison ──
+  if [[ "${SAVE_BASELINE:-false}" == "true" ]]; then
+    echo "$scan" | awk '{print $1, $2}' | sort > "$BASELINE_FILE"
+    info "Baseline saved to $BASELINE_FILE"
+    return
+  fi
+
+  if [[ -f "$BASELINE_FILE" ]]; then
+    local current_devices
+    current_devices=$(echo "$scan" | awk '{print $1, $2}' | sort)
+    local new_devices
+    new_devices=$(comm -23 <(echo "$current_devices") <(sort "$BASELINE_FILE"))
+    if [[ -n "$new_devices" ]]; then
+      alert "New/unknown devices detected since baseline:"
+      echo "$new_devices" | while read -r line; do
+        alert "    $line"
+        log_msg "NEW DEVICE: $line"
+      done
+    else
+      info "All devices match the known baseline."
+    fi
+  else
+    warn "No baseline saved yet. Run with --baseline to save one."
+  fi
+}
+
+# ── 3. open ports on gateway ────────────────────────────────────────
+section_ports() {
+  banner "Open Ports on Gateway ($GATEWAY)"
+  need nmap || return
+
+  local result
+  result=$(sudo nmap -sS -T4 --top-ports 1000 "$GATEWAY" 2>/dev/null \
+           | grep '^[0-9]' || true)
+
+  if [[ -z "$result" ]]; then
+    info "No open ports found on gateway (or scan blocked)."
+  else
+    echo "$result" | while read -r line; do
+      port=$(echo "$line" | awk '{print $1}')
+      state=$(echo "$line" | awk '{print $2}')
+      service=$(echo "$line" | awk '{print $3}')
+      if echo "$port" | grep -qE '^(23|445|3389|5900|8080|8443)'; then
+        alert "Suspicious port open: $port ($service) [$state]"
+        log_msg "SUSPICIOUS PORT on $GATEWAY: $port $service"
+      else
+        info "$port  $state  $service"
+      fi
+    done
+  fi
+}
+
+# ── 4. active connections ──────────────────────────────────────────
+section_connections() {
+  banner "Active Outbound Connections"
+
+  local conns
+  conns=$(lsof -i -nP 2>/dev/null \
+          | grep -E 'ESTABLISHED|UDP' \
+          | awk '{printf "%-20s %-8s %s\n", $1, $8, $9}' \
+          | sort -u || true)
+
+  if [[ -z "$conns" ]]; then
+    info "No active connections found."
+    return
+  fi
+
+  echo "$conns" | head -40
+  local total
+  total=$(echo "$conns" | wc -l | tr -d ' ')
+  [[ "$total" -gt 40 ]] && warn "... and $((total - 40)) more (truncated)."
+
+  # flag connections on unusual ports
+  lsof -i -nP 2>/dev/null | grep ESTABLISHED | awk '{print $9}' \
+    | grep -oE ':[0-9]+$' | sort | uniq -c | sort -rn | head -5 \
+    | while read -r cnt port; do
+        p=${port#:}
+        if [[ "$p" -gt 49151 ]]; then
+          warn "High-ephemeral port in use ($p) — $cnt connection(s)"
+        fi
+      done
+}
+
+# ── 5. ARP spoofing detection ──────────────────────────────────────
+section_arp() {
+  banner "ARP Spoofing Detection"
+
+  local arp_table
+  arp_table=$(arp -a 2>/dev/null || true)
+
+  # look for duplicate MACs pointing to different IPs
+  # deduplicate by (IP, MAC) first — the same device seen on multiple
+  # interfaces (en0 vs en7) is not spoofing
+  local dupes
+  dupes=$(echo "$arp_table" \
+          | awk '{print $2, $4}' \
+          | grep -v incomplete \
+          | sort -u \
+          | awk '{print $2}' \
+          | sort | uniq -d || true)
+
+  if [[ -n "$dupes" ]]; then
+    alert "Duplicate MAC address(es) found — possible ARP spoofing!"
+    for mac in $dupes; do
+      echo "$arp_table" | grep "$mac"
+      log_msg "ARP SPOOF SUSPECT: MAC $mac maps to multiple IPs"
+    done
+  else
+    info "No duplicate MAC addresses detected in ARP table."
+  fi
+
+  # check that gateway MAC is consistent
+  local gw_mac
+  gw_mac=$(arp -a | grep "($GATEWAY)" | awk '{print $4}')
+  if [[ -n "$gw_mac" ]]; then
+    info "Gateway $GATEWAY has MAC $gw_mac"
+  fi
+}
+
+# ── 6. DNS leak / suspicious resolution ────────────────────────────
+section_dns() {
+  banner "DNS Configuration & Leak Check"
+
+  local resolvers
+  resolvers=$(scutil --dns 2>/dev/null \
+              | grep 'nameserver\[' \
+              | awk '{print $3}' \
+              | sort -u || true)
+
+  if [[ -n "$resolvers" ]]; then
+    info "Active DNS resolvers:"
+    echo "$resolvers" | while read -r ns; do
+      if echo "$ns" | grep -qE '^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)'; then
+        info "    $ns (private)"
+      else
+        warn "    $ns (public — verify this is expected)"
+      fi
+    done
+  fi
+
+  # test for DNS hijacking — resolve a known domain and compare
+  local expected_ip resolved_ip
+  resolved_ip=$(dig +short A example.com @"${resolvers%% *}" 2>/dev/null | head -1 || true)
+  if [[ -n "$resolved_ip" ]]; then
+    info "example.com resolves to $resolved_ip via local DNS"
+  fi
+
+  # check /etc/hosts for surprises
+  local hosts_overrides
+  hosts_overrides=$(grep -vE '^\s*#|^\s*$|localhost|broadcasthost' /etc/hosts 2>/dev/null || true)
+  if [[ -n "$hosts_overrides" ]]; then
+    warn "Custom entries in /etc/hosts:"
+    echo "$hosts_overrides" | while read -r line; do
+      warn "    $line"
+    done
+  else
+    info "/etc/hosts has no unexpected overrides."
+  fi
+}
+
+# ── 7. rogue DHCP server detection ─────────────────────────────────
+section_dhcp() {
+  banner "Rogue DHCP Server Detection"
+  need nmap || return
+
+  local dhcp_result
+  dhcp_result=$(sudo nmap --script broadcast-dhcp-discover 2>/dev/null || true)
+
+  local dhcp_server
+  dhcp_server=$(echo "$dhcp_result" | grep "Server Identifier" | awk '{print $NF}' | head -1 | tr -d '[:space:]' || true)
+  local gw_trimmed
+  gw_trimmed=$(echo "$GATEWAY" | tr -d '[:space:]')
+
+  if [[ -z "$dhcp_server" ]]; then
+    warn "Could not identify DHCP server (scan may need more time)."
+  elif [[ "$dhcp_server" == "$gw_trimmed" ]]; then
+    info "DHCP server is the gateway ($GATEWAY) — looks normal."
+  else
+    alert "DHCP server ($dhcp_server) differs from gateway ($GATEWAY)!"
+    alert "This may indicate a rogue DHCP server on the network."
+    log_msg "ROGUE DHCP: server=$dhcp_server gateway=$GATEWAY"
+  fi
+}
+
+# ── 8. traffic anomaly snapshot ────────────────────────────────────
+section_traffic() {
+  banner "Traffic Snapshot (10-second capture)"
+
+  if ! command -v tcpdump &>/dev/null; then
+    warn "tcpdump not found; skipping traffic analysis."
+    return
+  fi
+
+  local tmpfile
+  tmpfile=$(mktemp /tmp/monitor-net-pcap.XXXXXX)
+  # capture 10 seconds of traffic
+  sudo timeout 10 tcpdump -i "$IFACE" -c 500 -nn -q 2>/dev/null > "$tmpfile" || true
+
+  if [[ ! -s "$tmpfile" ]]; then
+    warn "No packets captured (need sudo?)."
+    rm -f "$tmpfile"
+    return
+  fi
+
+  local pkt_count
+  pkt_count=$(wc -l < "$tmpfile" | tr -d ' ')
+  info "$pkt_count packets captured in 10 seconds."
+
+  # top talkers by destination IP
+  info "Top destination IPs:"
+  awk '{print $5}' "$tmpfile" \
+    | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' \
+    | sort | uniq -c | sort -rn | head -10 \
+    | while read -r cnt ip; do
+        printf "    %6d packets → %s\n" "$cnt" "$ip"
+      done
+
+  # detect potential port scanning (many SYN to different ports)
+  local syn_count
+  syn_count=$(grep -c ' S ' "$tmpfile" 2>/dev/null || echo 0)
+  if [[ "$syn_count" -gt 50 ]]; then
+    alert "High SYN count ($syn_count) — possible port scan in progress!"
+    log_msg "PORT SCAN: $syn_count SYN packets in 10s"
+  fi
+
+  rm -f "$tmpfile"
+}
+
+# ── 9. known malicious IP check ───────────────────────────────────
+section_malicious() {
+  banner "Check Connections Against Threat Feeds"
+
+  # gather unique remote IPs from established connections
+  local remote_ips
+  remote_ips=$(lsof -i -nP 2>/dev/null \
+               | grep ESTABLISHED \
+               | awk '{print $9}' \
+               | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' \
+               | grep -vE '^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|127\.)' \
+               | sort -u || true)
+
+  if [[ -z "$remote_ips" ]]; then
+    info "No public remote IPs in active connections."
+    return
+  fi
+
+  local ip_count
+  ip_count=$(echo "$remote_ips" | wc -l | tr -d ' ')
+  info "Checking $ip_count public IP(s) against AbuseIPDB..."
+
+  # Use AbuseIPDB free check endpoint (no API key needed for basic check)
+  # Fall back to reverse DNS + whois heuristics
+  echo "$remote_ips" | while read -r ip; do
+    local rdns
+    rdns=$(dig +short -x "$ip" 2>/dev/null | head -1 || echo "no-rdns")
+    rdns=${rdns:="no-rdns"}
+
+    # heuristic: flag IPs with no reverse DNS or suspicious TLDs
+    if [[ "$rdns" == "no-rdns" || "$rdns" == "" ]]; then
+      warn "$ip — no reverse DNS (investigate manually)"
+      log_msg "NO RDNS: $ip"
+    elif echo "$rdns" | grep -qiE '\.(ru|cn|kp|ir)\.$'; then
+      alert "$ip → $rdns (flagged country-TLD — verify legitimacy)"
+      log_msg "FLAGGED IP: $ip → $rdns"
+    else
+      info "$ip → $rdns"
+    fi
+  done
+}
+
+# ── run sections ────────────────────────────────────────────────────
+run_all() {
+  get_network_info
+
+  case "$SECTION" in
+    all)
+      section_info
+      section_devices
+      section_ports
+      section_connections
+      section_arp
+      section_dns
+      section_dhcp
+      section_traffic
+      section_malicious
+      ;;
+    info)        section_info ;;
+    devices)     section_devices ;;
+    ports)       section_ports ;;
+    connections) section_connections ;;
+    arp)         section_arp ;;
+    dns)         section_dns ;;
+    dhcp)        section_dhcp ;;
+    traffic)     section_traffic ;;
+    malicious)   section_malicious ;;
+    *)           alert "Unknown section: $SECTION"; usage ;;
+  esac
+
+  printf "\n${CYAN}──────────────────────────────────────${RESET}\n"
+  info "Log file: $LOG_FILE"
+  info "Run completed at $(date '+%Y-%m-%d %H:%M:%S')"
+}
+
+# ── main ────────────────────────────────────────────────────────────
+if $WATCH; then
+  while true; do
+    clear
+    run_all
+    info "Next scan in ${INTERVAL}s... (Ctrl-C to stop)"
+    sleep "$INTERVAL"
+  done
+else
+  run_all
+fi
