@@ -45,6 +45,7 @@ See [test/README.md](test/README.md) for more information about the test suite.
 - **powerlevel10k** theme with custom configuration
 - **Meslo Nerd Font** for proper glyph rendering
 - Custom aliases and environment settings
+- Platform-aware shell configuration across Apple Silicon, Intel macOS, and Linux
 - Auto-completion and syntax highlighting plugins
 
 # Other inspiration
