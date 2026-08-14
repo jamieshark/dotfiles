@@ -29,8 +29,9 @@ teardown() {
 
 # Helper function to extract and source functions from bootstrap
 load_bootstrap_functions() {
-  # Extract the link_file function from bootstrap
-  sed -n '/^link_file ()/,/^}/p' < "$DOTFILES_ROOT/bootstrap" > "$TEST_DIR/functions.sh"
+  # Extract the functions under test from bootstrap
+  sed -n '/^setup_gitconfig ()/,/^}/p' < "$DOTFILES_ROOT/bootstrap" > "$TEST_DIR/functions.sh"
+  sed -n '/^link_file ()/,/^}/p' < "$DOTFILES_ROOT/bootstrap" >> "$TEST_DIR/functions.sh"
   sed -n '/^info ()/,/^}/p' < "$DOTFILES_ROOT/bootstrap" >> "$TEST_DIR/functions.sh"
   sed -n '/^success ()/,/^}/p' < "$DOTFILES_ROOT/bootstrap" >> "$TEST_DIR/functions.sh"
   sed -n '/^fail ()/,/^}/p' < "$DOTFILES_ROOT/bootstrap" >> "$TEST_DIR/functions.sh"
@@ -156,6 +157,39 @@ load_bootstrap_functions() {
 
 @test "gitconfig.local.symlink.example exists as template" {
   [ -f "$BATS_TEST_DIRNAME/../git/gitconfig.local.symlink.example" ]
+}
+
+@test "tracked gitconfig includes machine-local configuration without identity or credentials" {
+  local gitconfig="$BATS_TEST_DIRNAME/../git/gitconfig.symlink"
+
+  [ "$(git config --file "$gitconfig" --get include.path)" = "~/.gitconfig.local" ]
+  ! git config --file "$gitconfig" --get user.name
+  ! git config --file "$gitconfig" --get user.email
+  ! git config --file "$gitconfig" --get credential.helper
+  ! git config --file "$gitconfig" --get github.user
+  [ -n "$(git config --file "$gitconfig" --get alias.pushit)" ]
+}
+
+@test "setup_gitconfig safely writes special characters to valid local config" {
+  mkdir -p "$DOTFILES_ROOT/git"
+  cp "$BATS_TEST_DIRNAME/../git/gitconfig.local.symlink.example" "$DOTFILES_ROOT/git/"
+  load_bootstrap_functions
+
+  local author_name='Jamie / Shark & Co \ Team'
+  local author_email='jamie+dev&ops/example@example.com'
+  local expected_credential='cache'
+  if [ "$(uname -s)" = "Darwin" ]; then
+    expected_credential='osxkeychain'
+  fi
+
+  run setup_gitconfig <<< "$author_name"$'\n'"$author_email"
+
+  [ "$status" -eq 0 ]
+  local gitconfig="$DOTFILES_ROOT/git/gitconfig.local.symlink"
+  [ "$(git config --file "$gitconfig" --get user.name)" = "$author_name" ]
+  [ "$(git config --file "$gitconfig" --get user.email)" = "$author_email" ]
+  [ "$(git config --file "$gitconfig" --get credential.helper)" = "$expected_credential" ]
+  git config --file "$gitconfig" --list >/dev/null
 }
 
 @test "zsh install script exists" {

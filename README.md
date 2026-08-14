@@ -31,6 +31,11 @@ script/bootstrap
 ```
 This will symlink the appropriate files in .dotfiles to your home directory. Everything is configured and tweaked within ~/.dotfiles and changes are reflected immediately once updated profiles are reloaded.
 
+Bootstrap prompts for your Git author name and email, then creates the ignored
+`git/gitconfig.local.symlink` with those values and the platform-appropriate
+credential helper. The tracked global Git configuration includes this file as
+`~/.gitconfig.local`, keeping machine-specific settings out of the repository.
+
 ## Testing
 To ensure the dotfiles are installing correctly and prevent regressions:
 ```zsh
