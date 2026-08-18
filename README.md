@@ -46,6 +46,7 @@ See [test/README.md](test/README.md) for more information about the test suite.
 - **Meslo Nerd Font** for proper glyph rendering
 - Curated navigation and macOS system-inspection aliases
 - macOS keyboard, Finder, Dock, and Safari defaults
+- Platform-aware shell configuration across Apple Silicon, Intel macOS, and Linux
 - Auto-completion and syntax highlighting plugins
 
 # Other inspiration
