@@ -37,18 +37,29 @@ setup_gitconfig () {
   then
     info 'setup gitconfig'
 
-    git_credential='cache'
+    local gitconfig_local='git/gitconfig.local.symlink'
+    local gitconfig_temp git_authorname git_authoremail
+    local git_credential='cache'
     if [ "$(uname -s)" == "Darwin" ]
     then
       git_credential='osxkeychain'
     fi
 
     user ' - What is your github author name?'
-    read -e git_authorname
+    read -r -e git_authorname
     user ' - What is your github author email?'
-    read -e git_authoremail
+    read -r -e git_authoremail
 
-    sed -e "s/AUTHORNAME/$git_authorname/g" -e "s/AUTHOREMAIL/$git_authoremail/g" -e "s/GIT_CREDENTIAL_HELPER/$git_credential/g" git/gitconfig.local.symlink.example > git/gitconfig.local.symlink
+    gitconfig_temp=$(mktemp "${gitconfig_local}.XXXXXX")
+    if ! cp git/gitconfig.local.symlink.example "$gitconfig_temp" ||
+      ! git config --file "$gitconfig_temp" user.name "$git_authorname" ||
+      ! git config --file "$gitconfig_temp" user.email "$git_authoremail" ||
+      ! git config --file "$gitconfig_temp" credential.helper "$git_credential"
+    then
+      rm -f "$gitconfig_temp"
+      fail 'unable to create gitconfig'
+    fi
+    mv "$gitconfig_temp" "$gitconfig_local"
 
     success 'gitconfig'
   fi

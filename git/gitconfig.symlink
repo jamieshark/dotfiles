@@ -1,7 +1,5 @@
-[github]
-  user = jamieshark
-[credential]
-  helper = osxkeychain
+[include]
+  path = ~/.gitconfig.local
 [core]
   editor = code --wait
   excludesfile = "$HOME/.gitignore"
@@ -84,9 +82,6 @@
 [push]
   default = simple
   autoSetupRemote = true
-[user]
-	name = Jamie Shark
-	email = 5520141+jamieshark@users.noreply.github.com
 [filter "lfs"]
 	process = git-lfs filter-process
 	required = true

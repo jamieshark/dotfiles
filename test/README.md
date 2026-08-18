@@ -36,6 +36,7 @@ The test script will automatically install BATS if it's not already present.
 - ✅ Symlink naming convention (e.g., `foo.symlink` → `~/.foo`)
 - ✅ Environment detection (Codespaces vs macOS)
 - ✅ All expected symlink files exist in the repository
+- ✅ Global Git config includes safely generated machine-local identity and credentials
 
 ### Install Script Tests
 - ✅ Install script finds all `install.sh` files
