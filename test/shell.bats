@@ -76,7 +76,7 @@ EOF
   chmod +x "$TEST_DIR/bin/uname"
 
   run env PATH="$TEST_DIR/bin:/usr/bin:/bin" zsh -c \
-    'source "$1"; alias f flushDNS ipInfo0 ipInfo1 showBlocked' \
+    'source "$1"; alias f flushDNS ipInfo0 ipInfo1' \
     zsh "$REPO_ROOT/zsh/aliases"
 
   [ "$status" -ne 0 ]
@@ -86,11 +86,10 @@ EOF
 
 @test "missing optional runtimes do not cause startup errors" {
   run env PATH="/usr/bin:/bin" VERBOSE= zsh -c \
-    'source "$1"; source "$2"; source "$3"; source "$4"' \
+    'source "$1"; source "$2"; source "$3"' \
     zsh \
     "$REPO_ROOT/node/path.zsh" \
     "$REPO_ROOT/python/path.zsh" \
-    "$REPO_ROOT/yarn/path.zsh" \
     "$REPO_ROOT/ruby/rbenv.zsh"
 
   [ "$status" -eq 0 ]

@@ -47,7 +47,6 @@ alias .3='cd ../../../'                     # Go back 3 directory levels
 alias .4='cd ../../../../'                  # Go back 4 directory levels
 alias .5='cd ../../../../../'               # Go back 5 directory levels
 alias .6='cd ../../../../../../'            # Go back 6 directory levels
-alias ~="cd ~"                              # ~: o Home
 
 #   lr:  Full Recursive Directory Listing
 #   ------------------------------------------
@@ -69,7 +68,6 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
   alias flushDNS='dscacheutil -flushcache'
   alias ipInfo0='ipconfig getpacket en0'
   alias ipInfo1='ipconfig getpacket en1'
-  alias showBlocked='sudo ipfw list'
 
   # ii: display useful host related information
   ii() {
@@ -85,9 +83,5 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
   }
 fi
 
-#   ---------------------------
-#   3. DEV SHORTCUTS
-#   ---------------------------
-
-# nuke node_modules
+# Remove all node_modules directories below the current directory.
 alias rmNM="find . -type d -name 'node_modules' -depth -exec rm -r \"{}\" \;"
