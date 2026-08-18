@@ -48,7 +48,6 @@ alias .4='cd ../../../../'                  # Go back 4 directory levels
 alias .5='cd ../../../../../'               # Go back 5 directory levels
 alias .6='cd ../../../../../../'            # Go back 6 directory levels
 alias f='open -a Finder ./'                 # f: Opens current directory in MacOS Finder
-alias ~="cd ~"                              # ~: o Home
 
 #   lr:  Full Recursive Directory Listing
 #   ------------------------------------------
@@ -67,7 +66,6 @@ alias lsockT='sudo /usr/sbin/lsof -nP | grep TCP'   # lsockT:       Display only
 alias ipInfo0='ipconfig getpacket en0'              # ipInfo0:      Get info on connections for en0
 alias ipInfo1='ipconfig getpacket en1'              # ipInfo1:      Get info on connections for en1
 alias openPorts='sudo lsof -i | grep LISTEN'        # openPorts:    All listening connections
-alias showBlocked='sudo ipfw list'                  # showBlocked:  All ipfw rules inc/ blocked IPs
 
 # ii: display useful host related informaton
 # -------------------------------------------------------------------
@@ -83,9 +81,5 @@ ii() {
   echo
 }
 
-#   ---------------------------
-#   3. DEV SHORTCUTS
-#   ---------------------------
-
-# nuke node_modules
+# Remove all node_modules directories below the current directory.
 alias rmNM="find . -type d -name 'node_modules' -depth -exec rm -r \"{}\" \;"

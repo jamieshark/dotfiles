@@ -44,7 +44,8 @@ See [test/README.md](test/README.md) for more information about the test suite.
 - **zsh** with oh-my-zsh framework
 - **powerlevel10k** theme with custom configuration
 - **Meslo Nerd Font** for proper glyph rendering
-- Custom aliases and environment settings
+- Curated navigation and macOS system-inspection aliases
+- macOS keyboard, Finder, Dock, and Safari defaults
 - Auto-completion and syntax highlighting plugins
 
 # Other inspiration
