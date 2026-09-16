@@ -4,9 +4,9 @@ These are dotfiles I use to personalize my terminal. They are arranged topically
 
 ## Installation
 
-Bootstrap creates the dotfile links and installs missing dependencies. It will
-not overwrite existing configs. Shell startup only loads existing configuration;
-it does not download or install dependencies.
+Bootstrap creates the dotfile links and installs missing dependencies. It
+prompts before replacing conflicting existing destinations. Shell startup only
+loads existing configuration; it does not download or install dependencies.
 
 ### macOS
 
@@ -18,6 +18,16 @@ script/bootstrap
 
 See [`script/README.md`](script/README.md) for bootstrap behavior, prerequisites,
 side effects, testing, and network-monitor usage.
+
+## Testing
+
+To ensure the dotfiles are installing correctly and prevent regressions:
+```zsh
+cd ~/.dotfiles
+./script/test
+```
+
+See [test/README.md](test/README.md) for more information about the test suite.
 
 ## Inspiration
 

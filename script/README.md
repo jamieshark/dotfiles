@@ -19,8 +19,8 @@ testing, and inspecting a local network. Run them from a trusted clone.
 - **Codespaces:** installs Zsh and fonts when missing, installs Zsh components,
   links the shell configuration, and may use `sudo chsh`.
 
-Existing destinations prompt for skip, overwrite, or backup. Overwrite removes
-the destination; backup moves it to a sibling `.backup` path.
+Conflicting existing destinations prompt for skip, overwrite, or backup.
+Overwrite removes the destination; backup moves it to a sibling `.backup` path.
 
 **Requires:** Bash and Git. Codespaces also requires `sudo`, `apt-get`, `curl`,
 and `fc-cache`.
@@ -128,8 +128,10 @@ fallback.
 Other checks intentionally access the network:
 
 - `info` and `ports` request the public IP from `api.ipify.org` or `ifconfig.me`.
-- `devices`, `ports`, `dhcp`, `traffic`, and `--inspect` scan or capture local
-  network activity.
+- `ports` scans the gateway and may run `sudo nmap` against the public IP when
+  checking whether a suspicious gateway port is internet-accessible.
+- `devices`, `dhcp`, `traffic`, and `--inspect` scan or capture local network
+  activity.
 - `dns`, `malicious`, and `--inspect` perform DNS lookups.
 
 The `malicious` section does not upload IP addresses to a threat-intelligence

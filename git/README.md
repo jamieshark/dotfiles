@@ -21,5 +21,6 @@ git config --file ~/.gitconfig.local user.name "Your Name"
 git config --file ~/.gitconfig.local user.email "you@example.com"
 ```
 
-macOS uses the `osxkeychain` credential helper; other supported environments
-use Git's credential cache.
+When bootstrap creates or repairs the local configuration, it defaults to the
+`osxkeychain` credential helper on macOS and Git's credential cache elsewhere.
+Existing valid or custom helper settings are preserved.
