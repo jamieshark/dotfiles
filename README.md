@@ -41,6 +41,15 @@ with its supported installer when needed, and then runs each declared component
 installer. Homebrew is discovered from Apple Silicon and Intel prefixes without
 requiring shell-startup installation logic.
 
+Bootstrap prompts for any missing Git author name or email, then creates or
+repairs the ignored `git/gitconfig.local.symlink` while preserving valid
+identity values. New or repaired configuration uses the platform-appropriate
+credential helper. The tracked global Git configuration includes this file as
+`~/.gitconfig.local`, keeping machine-specific settings out of the repository.
+
+### Bash fallback
+If Zsh is unavailable, source `~/.dotfiles/bash/git-completion.bash` and `~/.dotfiles/bash/git-prompt.sh` from your Bash configuration. The completion script enables Git tab completion; call `__git_ps1` from `PS1` to show the current branch. The prompt script includes configuration examples in its header.
+
 ## Testing
 To ensure the dotfiles are installing correctly and prevent regressions:
 ```zsh
@@ -57,8 +66,9 @@ See [test/README.md](test/README.md) for more information about the test suite.
 - Curated navigation and macOS system-inspection aliases
 - macOS keyboard, Finder, Dock, and Safari defaults
 - Platform-aware shell configuration across Apple Silicon, Intel macOS, and Linux
-- Auto-completion and syntax highlighting plugins
+- Git auto-completion through oh-my-zsh, plus syntax highlighting plugins
 - Lazy NVM initialization so Node tooling does not slow every shell startup
+- Optional Git completion and prompt fallback for Bash
 
 # Other inspiration
 https://dotfiles.github.io/inspiration/

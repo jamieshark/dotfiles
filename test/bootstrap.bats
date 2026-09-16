@@ -29,8 +29,9 @@ teardown() {
 
 # Helper function to extract and source functions from bootstrap
 load_bootstrap_functions() {
-  # Extract the link_file function from bootstrap
-  sed -n '/^link_file ()/,/^}/p' < "$DOTFILES_ROOT/bootstrap" > "$TEST_DIR/functions.sh"
+  # Extract the functions under test from bootstrap
+  sed -n '/^setup_gitconfig ()/,/^}/p' < "$DOTFILES_ROOT/bootstrap" > "$TEST_DIR/functions.sh"
+  sed -n '/^link_file ()/,/^}/p' < "$DOTFILES_ROOT/bootstrap" >> "$TEST_DIR/functions.sh"
   sed -n '/^info ()/,/^}/p' < "$DOTFILES_ROOT/bootstrap" >> "$TEST_DIR/functions.sh"
   sed -n '/^success ()/,/^}/p' < "$DOTFILES_ROOT/bootstrap" >> "$TEST_DIR/functions.sh"
   sed -n '/^fail ()/,/^}/p' < "$DOTFILES_ROOT/bootstrap" >> "$TEST_DIR/functions.sh"
@@ -101,7 +102,6 @@ load_bootstrap_functions() {
   # Verify that all referenced symlink files in the repo actually exist
   local symlink_files=(
     "zsh/zshrc.symlink"
-    "slate/slate.js.symlink"
     "git/gitignore.symlink"
     "git/gitconfig.symlink"
   )
@@ -115,7 +115,6 @@ load_bootstrap_functions() {
   # Verify that all referenced install.sh files in the repo actually exist
   local install_files=(
     "homebrew/install.sh"
-    "slate/install.sh"
     "node/install.sh"
     "zsh/install.sh"
   )
@@ -146,6 +145,110 @@ load_bootstrap_functions() {
 
 @test "gitconfig.local.symlink.example exists as template" {
   [ -f "$BATS_TEST_DIRNAME/../git/gitconfig.local.symlink.example" ]
+}
+
+@test "tracked gitconfig includes machine-local configuration without identity or credentials" {
+  local gitconfig="$BATS_TEST_DIRNAME/../git/gitconfig.symlink"
+
+  [ "$(git config --file "$gitconfig" --get include.path)" = "~/.gitconfig.local" ]
+  ! git config --file "$gitconfig" --get user.name
+  ! git config --file "$gitconfig" --get user.email
+  ! git config --file "$gitconfig" --get credential.helper
+  ! git config --file "$gitconfig" --get github.user
+  [ -n "$(git config --file "$gitconfig" --get alias.pushit)" ]
+}
+
+@test "setup_gitconfig safely writes special characters to valid local config" {
+  mkdir -p "$DOTFILES_ROOT/git"
+  cp "$BATS_TEST_DIRNAME/../git/gitconfig.local.symlink.example" "$DOTFILES_ROOT/git/"
+  load_bootstrap_functions
+
+  local author_name='Jamie / Shark & Co \ Team'
+  local author_email='jamie+dev&ops/example@example.com'
+  local expected_credential='cache'
+  if [ "$(uname -s)" = "Darwin" ]; then
+    expected_credential='osxkeychain'
+  fi
+
+  run setup_gitconfig <<< "$author_name"$'\n'"$author_email"
+
+  [ "$status" -eq 0 ]
+  local gitconfig="$DOTFILES_ROOT/git/gitconfig.local.symlink"
+  [ "$(git config --file "$gitconfig" --get user.name)" = "$author_name" ]
+  [ "$(git config --file "$gitconfig" --get user.email)" = "$author_email" ]
+  [ "$(git config --file "$gitconfig" --get credential.helper)" = "$expected_credential" ]
+  git config --file "$gitconfig" --list >/dev/null
+  [ -z "$(find "$DOTFILES_ROOT/git" -name 'gitconfig.local.symlink.??????' -print -quit)" ]
+}
+
+@test "setup_gitconfig repairs empty identity in an existing local config" {
+  mkdir -p "$DOTFILES_ROOT/git"
+  local gitconfig="$DOTFILES_ROOT/git/gitconfig.local.symlink"
+  local expected_credential='cache'
+  if [ "$(uname -s)" = "Darwin" ]; then
+    expected_credential='osxkeychain'
+  fi
+  cp "$BATS_TEST_DIRNAME/../git/gitconfig.local.symlink.example" "$gitconfig"
+  git config --file "$gitconfig" user.name ''
+  git config --file "$gitconfig" user.email ''
+  git config --file "$gitconfig" custom.preserved 'existing value'
+  load_bootstrap_functions
+
+  run setup_gitconfig <<< $'Jamie Shark\njamie@example.com'
+
+  [ "$status" -eq 0 ]
+  [ "$(git config --file "$gitconfig" --get user.name)" = "Jamie Shark" ]
+  [ "$(git config --file "$gitconfig" --get user.email)" = "jamie@example.com" ]
+  [ "$(git config --file "$gitconfig" --get credential.helper)" = "$expected_credential" ]
+  [ "$(git config --file "$gitconfig" --get custom.preserved)" = "existing value" ]
+  [ -z "$(find "$DOTFILES_ROOT/git" -name 'gitconfig.local.symlink.??????' -print -quit)" ]
+}
+
+@test "setup_gitconfig prompts only for missing identity and preserves valid values" {
+  mkdir -p "$DOTFILES_ROOT/git"
+  local gitconfig="$DOTFILES_ROOT/git/gitconfig.local.symlink"
+  cp "$BATS_TEST_DIRNAME/../git/gitconfig.local.symlink.example" "$gitconfig"
+  git config --file "$gitconfig" user.name 'Existing Name'
+  git config --file "$gitconfig" user.email ''
+  load_bootstrap_functions
+
+  run setup_gitconfig <<< 'new@example.com'
+
+  [ "$status" -eq 0 ]
+  [ "$(git config --file "$gitconfig" --get user.name)" = "Existing Name" ]
+  [ "$(git config --file "$gitconfig" --get user.email)" = "new@example.com" ]
+}
+
+@test "setup_gitconfig leaves valid existing identity unchanged" {
+  mkdir -p "$DOTFILES_ROOT/git"
+  local gitconfig="$DOTFILES_ROOT/git/gitconfig.local.symlink"
+  cp "$BATS_TEST_DIRNAME/../git/gitconfig.local.symlink.example" "$gitconfig"
+  git config --file "$gitconfig" user.name 'Existing Name'
+  git config --file "$gitconfig" user.email 'existing@example.com'
+  git config --file "$gitconfig" credential.helper 'existing-helper'
+  load_bootstrap_functions
+
+  run setup_gitconfig </dev/null
+
+  [ "$status" -eq 0 ]
+  [ "$(git config --file "$gitconfig" --get user.name)" = "Existing Name" ]
+  [ "$(git config --file "$gitconfig" --get user.email)" = "existing@example.com" ]
+  [ "$(git config --file "$gitconfig" --get credential.helper)" = "existing-helper" ]
+}
+
+@test "setup_gitconfig removes its temporary file when the atomic move fails" {
+  mkdir -p "$DOTFILES_ROOT/git"
+  cp "$BATS_TEST_DIRNAME/../git/gitconfig.local.symlink.example" "$DOTFILES_ROOT/git/"
+  load_bootstrap_functions
+  mv() {
+    return 1
+  }
+
+  run setup_gitconfig <<< $'Jamie Shark\njamie@example.com'
+
+  [ "$status" -ne 0 ]
+  [ ! -e "$DOTFILES_ROOT/git/gitconfig.local.symlink" ]
+  [ -z "$(find "$DOTFILES_ROOT/git" -name 'gitconfig.local.symlink.??????' -print -quit)" ]
 }
 
 @test "zsh install script exists" {

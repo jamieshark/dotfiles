@@ -64,17 +64,6 @@ teardown() {
   grep -q "command -v npm" "$BATS_TEST_DIRNAME/../node/install.sh"
 }
 
-@test "slate install.sh is a placeholder" {
-  # Slate install currently just echoes a message
-  grep -q "installing slate" "$BATS_TEST_DIRNAME/../slate/install.sh"
-}
-
-@test "slate install.sh exits successfully" {
-  run "$BATS_TEST_DIRNAME/../slate/install.sh"
-  
-  [ "$status" -eq 0 ]
-}
-
 @test "zsh install checks for oh-my-zsh directory" {
   grep -q "ZSH" "$BATS_TEST_DIRNAME/../zsh/install.sh"
 }
@@ -118,10 +107,10 @@ EOF
 
 @test "script/install executes declared installers from a path with spaces" {
   local root="$TEST_DIR/dot files"
-  mkdir -p "$root/script" "$root/homebrew" "$root/node" "$root/slate" "$root/zsh"
+  mkdir -p "$root/script" "$root/homebrew" "$root/node" "$root/zsh"
   cp "$BATS_TEST_DIRNAME/../script/install" "$root/script/install"
 
-  for component in homebrew node slate zsh; do
+  for component in homebrew node zsh; do
     cat > "$root/$component/install.sh" <<EOF
 #!/usr/bin/env bash
 echo "$component" >> "$TEST_DIR/installers"
@@ -133,13 +122,12 @@ EOF
 
   [ "$status" -eq 0 ]
   [ "$output" = "" ]
-  [ "$(cat "$TEST_DIR/installers")" = $'homebrew\nnode\nslate\nzsh' ]
+  [ "$(cat "$TEST_DIR/installers")" = $'homebrew\nnode\nzsh' ]
 }
 
 @test "all install.sh scripts are executable" {
   local install_files=(
     "$BATS_TEST_DIRNAME/../homebrew/install.sh"
-    "$BATS_TEST_DIRNAME/../slate/install.sh"
     "$BATS_TEST_DIRNAME/../node/install.sh"
     "$BATS_TEST_DIRNAME/../zsh/install.sh"
   )
@@ -153,7 +141,6 @@ EOF
   local install_files=(
     "$BATS_TEST_DIRNAME/../homebrew/install.sh"
     "$BATS_TEST_DIRNAME/../node/install.sh"
-    "$BATS_TEST_DIRNAME/../slate/install.sh"
     "$BATS_TEST_DIRNAME/../zsh/install.sh"
   )
   

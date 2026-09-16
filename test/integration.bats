@@ -27,7 +27,7 @@ teardown() {
   done < <(find -H "$DOTFILES_ROOT" -maxdepth 2 -name '*.symlink' -not -path '*.git*' -print0)
   
   # Should find at least the known symlink files
-  [ "${#symlink_array[@]}" -ge 4 ]
+  [ "${#symlink_array[@]}" -ge 3 ]
 }
 
 @test "symlink files have valid content" {
@@ -48,7 +48,7 @@ teardown() {
     install_array+=("$file")
   done < <(find . -mindepth 2 -maxdepth 2 -name install.sh -print0)
   
-  [ "${#install_array[@]}" -eq 4 ]
+  [ "${#install_array[@]}" -eq 3 ]
 }
 
 @test "script directory contains required scripts" {
