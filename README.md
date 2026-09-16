@@ -39,6 +39,29 @@ credential helper. The tracked global Git configuration includes this file as
 ### Bash fallback
 If Zsh is unavailable, source `~/.dotfiles/bash/git-completion.bash` and `~/.dotfiles/bash/git-prompt.sh` from your Bash configuration. The completion script enables Git tab completion; call `__git_ps1` from `PS1` to show the current branch. The prompt script includes configuration examples in its header.
 
+### VS Code
+
+`vscode/settings.json` is a user-settings baseline; the bootstrap script does not install it. Merge it into VS Code user settings, then use Settings Sync to share it with trusted Codespaces.
+
+The configured formatters and UI values expect these extensions where their languages or themes are used:
+
+- `manuelpuyol.erb-linter`
+- `golang.go`
+- `esbenp.prettier-vscode`
+- `stylelint.vscode-stylelint`
+- `dbaeumer.vscode-eslint`
+- `DavidAnson.vscode-markdownlint`
+- `GitHub.vscode-pull-request-github`
+- `eamodio.gitlens`
+- `Shopify.ruby-lsp`
+- `GitHub.github-vscode-theme`
+- `PKief.material-icon-theme`
+- `miguelsolorio.fluent-icons`
+
+The `github.codespaces.showPerformanceExplorer` preference is Codespaces-only and requires the `GitHub.codespaces` desktop extension. Codespaces bootstrap installs zsh, so the Linux terminal default is valid there. The macOS default also expects zsh; Windows uses VS Code's detected PowerShell profile.
+
+Copilot completion preferences use the support bundled with current VS Code and require a signed-in account with Copilot access. `Shopify.ruby-lsp` remains excluded from Settings Sync so it can be installed only in environments that work on Ruby; when installed, it formats Ruby with RuboCop on save.
+
 ## Testing
 To ensure the dotfiles are installing correctly and prevent regressions:
 ```zsh
