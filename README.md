@@ -4,11 +4,16 @@ These are dotfiles I use to personalize my terminal. They are arranged topically
 
 ## Installation
 
+Installation is explicit: `script/bootstrap` creates the dotfile links and installs
+missing dependencies. Opening or reloading zsh only loads configuration; it never
+downloads, clones, or installs anything. Re-running bootstrap is safe and skips
+dependencies that are already present.
+
 ### For GitHub Codespaces
 The installation script will automatically:
 1. Install zsh (if not already installed)
-2. Install Meslo Nerd Font for p10k glyphs
-3. Install oh-my-zsh and powerlevel10k theme
+2. Install missing Meslo Nerd Font variants for p10k glyphs
+3. Install missing oh-my-zsh, powerlevel10k, and zsh plugins
 4. Symlink zsh configuration files
 5. Set zsh as the default shell
 
@@ -31,8 +36,19 @@ script/bootstrap
 ```
 This will symlink the appropriate files in .dotfiles to your home directory. Everything is configured and tweaked within ~/.dotfiles and changes are reflected immediately once updated profiles are reloaded.
 
-Bootstrap prompts for your Git author name and email, then creates the ignored
-`git/gitconfig.local.symlink` with those values and the platform-appropriate
+On macOS, bootstrap applies the repository's system preferences, installs Homebrew
+with its supported installer when needed, and then runs each declared component
+installer. Homebrew is discovered from Apple Silicon and Intel prefixes without
+requiring shell-startup installation logic.
+
+Bootstrap preserves an existing NVM installation or installs a pinned NVM
+release from its verified official installer when missing. It provisions the
+current Node.js LTS only when NVM has no default version, and Node tooling
+remains lazy-loaded until first use.
+
+Bootstrap prompts for any missing Git author name or email, then creates or
+repairs the ignored `git/gitconfig.local.symlink` while preserving valid
+identity values. New or repaired configuration uses the platform-appropriate
 credential helper. The tracked global Git configuration includes this file as
 `~/.gitconfig.local`, keeping machine-specific settings out of the repository.
 
@@ -79,6 +95,7 @@ See [test/README.md](test/README.md) for more information about the test suite.
 - macOS keyboard, Finder, Dock, and Safari defaults
 - Platform-aware shell configuration across Apple Silicon, Intel macOS, and Linux
 - Git auto-completion through oh-my-zsh, plus syntax highlighting plugins
+- Idempotent NVM and Node.js LTS setup with lazy shell initialization
 - Optional Git completion and prompt fallback for Bash
 
 # Other inspiration

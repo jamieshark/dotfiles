@@ -40,17 +40,15 @@ teardown() {
   done
 }
 
-@test "install.sh scripts can be discovered" {
+@test "all declared install.sh scripts exist" {
   cd "$DOTFILES_ROOT"
   
-  # Use mapfile to properly handle find results
   local -a install_array
   while IFS= read -r -d '' file; do
     install_array+=("$file")
-  done < <(find . -name install.sh -not -path '*.git*' -print0)
+  done < <(find . -mindepth 2 -maxdepth 2 -name install.sh -print0)
   
-  # Should find at least the known install.sh files
-  [ "${#install_array[@]}" -ge 2 ]
+  [ "${#install_array[@]}" -eq 3 ]
 }
 
 @test "script directory contains required scripts" {
@@ -65,7 +63,7 @@ teardown() {
 
 @test "zsh configuration files exist" {
   [ -f "$DOTFILES_ROOT/zsh/zshrc.symlink" ]
-  [ -f "$DOTFILES_ROOT/zsh/install" ]
+  [ -f "$DOTFILES_ROOT/zsh/install.sh" ]
 }
 
 @test "git configuration files exist" {

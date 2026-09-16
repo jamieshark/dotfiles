@@ -2,14 +2,16 @@
 #
 # bootstrap creates symlinks for all dotfiles in this directory to $HOME
 
+set -e
+
 cd "$(dirname "$0")/.."
-export DOTFILES_ROOT=$(pwd -P)
+export DOTFILES_ROOT
+DOTFILES_ROOT="$(pwd -P)"
 if [[ -n "$CODESPACES" ]]; then
-  export DOTFILES_DEST=$DOTFILES_ROOT
+  export DOTFILES_DEST="$DOTFILES_ROOT"
 else
-  export DOTFILES_DEST=$HOME
+  export DOTFILES_DEST="$HOME"
 fi
-set -e # -e: exit on error
 
 echo ''
 
@@ -33,36 +35,101 @@ fail () {
 
 
 setup_gitconfig () {
-  if ! [ -f git/gitconfig.local.symlink ]
+  local gitconfig_local='git/gitconfig.local.symlink'
+  local gitconfig_source='git/gitconfig.local.symlink.example'
+  local gitconfig_temp git_authorname='' git_authoremail='' git_config_status
+  local git_credential='' platform_git_credential='cache'
+  local write_git_credential=false
+  if [ "$(uname -s)" == "Darwin" ]
   then
-    info 'setup gitconfig'
+    platform_git_credential='osxkeychain'
+  fi
 
-    local gitconfig_local='git/gitconfig.local.symlink'
-    local gitconfig_temp git_authorname git_authoremail
-    local git_credential='cache'
-    if [ "$(uname -s)" == "Darwin" ]
+  if [ -f "$gitconfig_local" ]
+  then
+    gitconfig_source="$gitconfig_local"
+
+    if git_authorname=$(git config --file "$gitconfig_local" --get user.name)
     then
-      git_credential='osxkeychain'
+      :
+    else
+      git_config_status=$?
+      if [ "$git_config_status" -ne 1 ]
+      then
+        fail 'unable to read gitconfig'
+      fi
     fi
 
+    if git_authoremail=$(git config --file "$gitconfig_local" --get user.email)
+    then
+      :
+    else
+      git_config_status=$?
+      if [ "$git_config_status" -ne 1 ]
+      then
+        fail 'unable to read gitconfig'
+      fi
+    fi
+
+    if git_credential=$(git config --file "$gitconfig_local" --get credential.helper)
+    then
+      :
+    else
+      git_config_status=$?
+      if [ "$git_config_status" -ne 1 ]
+      then
+        fail 'unable to read gitconfig'
+      fi
+    fi
+  fi
+
+  if [ -n "$git_authorname" ] && [ -n "$git_authoremail" ]
+  then
+    return
+  fi
+
+  info 'setup gitconfig'
+
+  while [ -z "$git_authorname" ]
+  do
     user ' - What is your github author name?'
     read -r -e git_authorname
+  done
+
+  while [ -z "$git_authoremail" ]
+  do
     user ' - What is your github author email?'
     read -r -e git_authoremail
+  done
 
-    gitconfig_temp=$(mktemp "${gitconfig_local}.XXXXXX")
-    if ! cp git/gitconfig.local.symlink.example "$gitconfig_temp" ||
-      ! git config --file "$gitconfig_temp" user.name "$git_authorname" ||
-      ! git config --file "$gitconfig_temp" user.email "$git_authoremail" ||
-      ! git config --file "$gitconfig_temp" credential.helper "$git_credential" ||
-      ! mv "$gitconfig_temp" "$gitconfig_local"
-    then
-      rm -f "$gitconfig_temp"
-      fail 'unable to create gitconfig'
-    fi
-
-    success 'gitconfig'
+  if [ -z "$git_credential" ] || [ "$git_credential" = 'GIT_CREDENTIAL_HELPER' ]
+  then
+    git_credential="$platform_git_credential"
+    write_git_credential=true
   fi
+  gitconfig_temp=$(mktemp "${gitconfig_local}.XXXXXX")
+  if ! cp "$gitconfig_source" "$gitconfig_temp" ||
+    ! git config --file "$gitconfig_temp" user.name "$git_authorname" ||
+    ! git config --file "$gitconfig_temp" user.email "$git_authoremail"
+  then
+    rm -f "$gitconfig_temp"
+    fail 'unable to create gitconfig'
+  fi
+
+  if [ "$write_git_credential" = true ] &&
+    ! git config --file "$gitconfig_temp" credential.helper "$git_credential"
+  then
+    rm -f "$gitconfig_temp"
+    fail 'unable to create gitconfig'
+  fi
+
+  if ! mv "$gitconfig_temp" "$gitconfig_local"
+  then
+    rm -f "$gitconfig_temp"
+    fail 'unable to create gitconfig'
+  fi
+
+  success 'gitconfig'
 }
 
 link_file () {
@@ -71,13 +138,14 @@ link_file () {
   local overwrite= backup= skip=
   local action=
 
-  if [ -f "$dst" -o -d "$dst" -o -L "$dst" ]
+  if [[ -e "$dst" || -L "$dst" ]]
   then
 
     if [ "$overwrite_all" == "false" ] && [ "$backup_all" == "false" ] && [ "$skip_all" == "false" ]
     then
 
-      local currentSrc="$(readlink $dst)"
+      local currentSrc
+      currentSrc="$(readlink "$dst")"
 
       if [ "$currentSrc" == "$src" ]
       then
@@ -144,28 +212,24 @@ install_dotfiles () {
   info 'installing dotfiles'
 
   local overwrite_all=${1:-false} backup_all=false skip_all=false
+  local src dst
 
-  for src in $(find -H "$DOTFILES_ROOT" -maxdepth 2 -name '*.symlink' -not -path '*.git*')
-  do
+  while IFS= read -r -d '' src; do
     dst="$DOTFILES_DEST/.$(basename "${src%.*}")"
     link_file "$src" "$dst"
-  done
+  done < <(
+    find -H "$DOTFILES_ROOT" -maxdepth 2 -name '*.symlink' \
+      -not -path '*.git*' -print0
+  )
 }
 
 install_mac_deps () {
   # Set macOS defaults
-  $DOTFILES_ROOT/macos/set-defaults.sh
-
-  # Install homebrew
-  $DOTFILES_ROOT/homebrew/install.sh 2>&1
-
-  # Upgrade homebrew
-  echo "› brew update"
-  brew update
+  "$DOTFILES_ROOT/macos/set-defaults.sh"
 
   # Install software
   echo "› $DOTFILES_ROOT/script/install"
-  $DOTFILES_ROOT/script/install
+  "$DOTFILES_ROOT/script/install"
 }
 
 
@@ -182,29 +246,33 @@ if [[ -n "$CODESPACES" ]]; then
     success "zsh already installed"
   fi
 
-  # Install fonts for p10k glyphs
-  echo "Installing Meslo Nerd Font for p10k glyphs..."
-  mkdir -p ~/.local/share/fonts
-  if ! cd ~/.local/share/fonts; then
-    fail "Failed to change directory to ~/.local/share/fonts"
-  fi
-  
-  # Download Meslo Nerd Font files
+  # Install fonts for p10k glyphs when missing.
+  font_dir="$HOME/.local/share/fonts"
+  mkdir -p "$font_dir"
+  fonts_installed=false
   font_variants=("Regular" "Bold" "Italic" "Bold Italic")
   for variant in "${font_variants[@]}"; do
-    curl -fLo "MesloLGS NF ${variant}.ttf" "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20${variant// /%20}.ttf"
+    font_path="$font_dir/MesloLGS NF ${variant}.ttf"
+    if [[ ! -f "$font_path" ]]; then
+      echo "Installing Meslo Nerd Font ${variant}..."
+      curl -fLo "$font_path" \
+        "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20${variant// /%20}.ttf"
+      fonts_installed=true
+    fi
   done
-  
-  # Refresh font cache
-  fc-cache -f
-  cd "$DOTFILES_ROOT" || fail "Failed to return to dotfiles directory"
-  success "Meslo Nerd Font installed"
+
+  if [[ "$fonts_installed" == "true" ]]; then
+    fc-cache -f
+    success "Meslo Nerd Font installed"
+  else
+    success "Meslo Nerd Font already installed"
+  fi
 
   # Set ZSH environment variable before running install
   export ZSH="$HOME/.oh-my-zsh"
   
   # Install oh-my-zsh and powerlevel10k
-  bash "$DOTFILES_ROOT/zsh/install"
+  "$DOTFILES_ROOT/zsh/install.sh"
   
   # Symlink zsh configuration files
   ln -sf "$DOTFILES_ROOT/zsh/zshrc.symlink" "$HOME/.zshrc"
@@ -212,9 +280,10 @@ if [[ -n "$CODESPACES" ]]; then
   success "zsh configuration files symlinked"
 
   # Change default shell to zsh
-  if [ "$SHELL" != "$(which zsh)" ]; then
+  zsh_path="$(command -v zsh)"
+  if [ "$SHELL" != "$zsh_path" ]; then
     echo "Changing default shell to zsh..."
-    sudo chsh -s "$(which zsh)" "$(whoami)"
+    sudo chsh -s "$zsh_path" "$(whoami)"
     success "Default shell changed to zsh"
   fi
 
@@ -224,10 +293,7 @@ if [[ -n "$CODESPACES" ]]; then
 # If we're on a Mac, let's install and setup other deps
 elif [ "$(uname -s)" == "Darwin" ]
 then
-  if ! [ -f git/gitconfig.local.symlink ]
-  then
-    setup_gitconfig
-  fi
+  setup_gitconfig
 
   install_dotfiles
 

@@ -49,7 +49,7 @@ EOF
   [ "$output" = "loaded" ]
 }
 
-@test "Homebrew shell environment is skipped outside macOS" {
+@test "Homebrew shell environment loads on Linux from PATH" {
   mkdir -p "$TEST_DIR/bin"
   cat > "$TEST_DIR/bin/uname" <<'EOF'
 #!/bin/sh
@@ -57,14 +57,15 @@ echo Linux
 EOF
   cat > "$TEST_DIR/bin/brew" <<'EOF'
 #!/bin/sh
-echo 'exit 42'
+echo 'export HOMEBREW_TEST=loaded'
 EOF
   chmod +x "$TEST_DIR/bin/uname" "$TEST_DIR/bin/brew"
 
-  run env PATH="$TEST_DIR/bin:/usr/bin" /bin/zsh -c 'source "$1"' \
-    zsh "$REPO_ROOT/homebrew/path.zsh"
+  run env PATH="$TEST_DIR/bin:/usr/bin" /bin/zsh -c \
+    'source "$1"; print -r -- "$HOMEBREW_TEST"' zsh "$REPO_ROOT/homebrew/path.zsh"
 
   [ "$status" -eq 0 ]
+  [ "$output" = "loaded" ]
 }
 
 @test "macOS-only aliases are not exposed on Linux" {
@@ -96,9 +97,47 @@ EOF
   [ "$output" = "" ]
 }
 
+@test "zsh startup performs no setup or network commands" {
+  mkdir -p "$TEST_DIR/home" "$TEST_DIR/zsh" "$TEST_DIR/bin"
+
+  for command in curl git npm; do
+    cat > "$TEST_DIR/bin/$command" <<EOF
+#!/bin/sh
+echo "$command" >> "$TEST_DIR/commands"
+exit 99
+EOF
+    chmod +x "$TEST_DIR/bin/$command"
+  done
+
+  run env HOME="$TEST_DIR/home" ZSH="$TEST_DIR/zsh" VERBOSE= \
+    PATH="$TEST_DIR/bin:/usr/bin:/bin" /bin/zsh -f -c 'source "$1"' \
+    zsh "$REPO_ROOT/zsh/zshrc.symlink"
+
+  [ "$status" -eq 0 ]
+  [ ! -e "$TEST_DIR/commands" ]
+}
+
+@test "zsh startup lazily loads nvm" {
+  grep -Fq 'load_nvm()' "$REPO_ROOT/zsh/zshrc.symlink"
+  ! grep -Fq 'bash_completion' "$REPO_ROOT/zsh/zshrc.symlink"
+}
+
+@test "zsh startup preserves a custom NVM directory" {
+  run env HOME="$TEST_DIR/home" NVM_DIR="$TEST_DIR/custom-nvm" VERBOSE= \
+    PATH="/usr/bin:/bin" /bin/zsh -f -c \
+    'source "$1"; print -r -- "$NVM_DIR"' zsh "$REPO_ROOT/zsh/zshrc.symlink"
+
+  [ "$status" -eq 0 ]
+  [ "$output" = "$TEST_DIR/custom-nvm" ]
+}
+
+@test "zsh plugin configuration has no installation side effects" {
+  ! grep -Eq 'git clone|curl|npm install' "$REPO_ROOT/zsh/plugins"
+}
+
 @test "Git completion is provided by the oh-my-zsh git plugin" {
   grep -Eq '^[[:space:]]*git[[:space:]]*$' "$REPO_ROOT/zsh/plugins"
-  grep -Fq 'source ${ZSH:-~/.oh-my-zsh}/oh-my-zsh.sh' "$REPO_ROOT/zsh/zshrc.symlink"
+  grep -Fq 'source "$ZSH/oh-my-zsh.sh"' "$REPO_ROOT/zsh/zshrc.symlink"
 }
 
 @test "obsolete vendored Git shell scripts are absent" {
