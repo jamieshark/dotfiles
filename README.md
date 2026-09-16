@@ -31,6 +31,14 @@ script/bootstrap
 ```
 This will symlink the appropriate files in .dotfiles to your home directory. Everything is configured and tweaked within ~/.dotfiles and changes are reflected immediately once updated profiles are reloaded.
 
+Bootstrap prompts for your Git author name and email, then creates the ignored
+`git/gitconfig.local.symlink` with those values and the platform-appropriate
+credential helper. The tracked global Git configuration includes this file as
+`~/.gitconfig.local`, keeping machine-specific settings out of the repository.
+
+### Bash fallback
+If Zsh is unavailable, source `~/.dotfiles/bash/git-completion.bash` and `~/.dotfiles/bash/git-prompt.sh` from your Bash configuration. The completion script enables Git tab completion; call `__git_ps1` from `PS1` to show the current branch. The prompt script includes configuration examples in its header.
+
 ### VS Code
 
 `vscode/settings.json` is a user-settings baseline; the bootstrap script does not install it. Merge it into VS Code user settings, then use Settings Sync to share it with trusted Codespaces.
@@ -70,7 +78,8 @@ See [test/README.md](test/README.md) for more information about the test suite.
 - Curated navigation and macOS system-inspection aliases
 - macOS keyboard, Finder, Dock, and Safari defaults
 - Platform-aware shell configuration across Apple Silicon, Intel macOS, and Linux
-- Auto-completion and syntax highlighting plugins
+- Git auto-completion through oh-my-zsh, plus syntax highlighting plugins
+- Optional Git completion and prompt fallback for Bash
 
 # Other inspiration
 https://dotfiles.github.io/inspiration/
