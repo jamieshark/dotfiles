@@ -122,6 +122,15 @@ EOF
   ! grep -Fq 'bash_completion' "$REPO_ROOT/zsh/zshrc.symlink"
 }
 
+@test "zsh startup preserves a custom NVM directory" {
+  run env HOME="$TEST_DIR/home" NVM_DIR="$TEST_DIR/custom-nvm" VERBOSE= \
+    PATH="/usr/bin:/bin" /bin/zsh -f -c \
+    'source "$1"; print -r -- "$NVM_DIR"' zsh "$REPO_ROOT/zsh/zshrc.symlink"
+
+  [ "$status" -eq 0 ]
+  [ "$output" = "$TEST_DIR/custom-nvm" ]
+}
+
 @test "zsh plugin configuration has no installation side effects" {
   ! grep -Eq 'git clone|curl|npm install' "$REPO_ROOT/zsh/plugins"
 }

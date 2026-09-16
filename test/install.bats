@@ -56,16 +56,20 @@ teardown() {
   [ "$status" -eq 0 ]
 }
 
-@test "node install.sh uses Homebrew to provision NVM" {
-  grep -Fq 'list --formula nvm' "$BATS_TEST_DIRNAME/../node/install.sh"
-  grep -Fq 'install nvm' "$BATS_TEST_DIRNAME/../node/install.sh"
+@test "node install.sh uses a pinned and verified official NVM installer" {
+  grep -Fq 'nvm_version="v0.40.7"' "$BATS_TEST_DIRNAME/../node/install.sh"
+  grep -Fq 'raw.githubusercontent.com/nvm-sh/nvm/$nvm_version/install.sh' \
+    "$BATS_TEST_DIRNAME/../node/install.sh"
+  grep -Fq 'nvm_installer_sha256=' "$BATS_TEST_DIRNAME/../node/install.sh"
+  grep -Fq 'PROFILE=/dev/null NVM_DIR="$NVM_DIR" bash "$nvm_installer"' \
+    "$BATS_TEST_DIRNAME/../node/install.sh"
   ! grep -q "spoof" "$BATS_TEST_DIRNAME/../node/install.sh"
 }
 
-@test "node install.sh skips setup when NVM and a default Node version exist" {
-  local prefix="$TEST_DIR/nvm-prefix"
-  mkdir -p "$prefix" "$TEST_DIR/bin"
-  cat > "$prefix/nvm.sh" <<EOF
+@test "node install.sh preserves an existing NVM installation" {
+  local nvm_dir="$TEST_DIR/existing nvm"
+  mkdir -p "$nvm_dir"
+  cat > "$nvm_dir/nvm.sh" <<EOF
 nvm() {
   if [[ "\$1" == "version" && "\$2" == "default" ]]; then
     return 0
@@ -73,32 +77,19 @@ nvm() {
   echo "\$*" >> "$TEST_DIR/nvm-commands"
 }
 EOF
-  cat > "$TEST_DIR/bin/brew" <<EOF
-#!/usr/bin/env bash
-if [[ "\$1" == "list" ]]; then
-  exit 0
-fi
-if [[ "\$1" == "--prefix" ]]; then
-  echo "$prefix"
-  exit 0
-fi
-echo "\$*" >> "$TEST_DIR/brew-commands"
-EOF
-  chmod +x "$TEST_DIR/bin/brew"
 
-  run env HOME="$TEST_DIR/home" PATH="$TEST_DIR/bin:/usr/bin:/bin" \
+  run env HOME="$TEST_DIR/home" NVM_DIR="$nvm_dir" PATH="/usr/bin:/bin" \
     "$BATS_TEST_DIRNAME/../node/install.sh"
 
   [ "$status" -eq 0 ]
   [ "$output" = "" ]
-  [ ! -e "$TEST_DIR/brew-commands" ]
   [ ! -e "$TEST_DIR/nvm-commands" ]
 }
 
-@test "node install.sh installs NVM and a default Node LTS when missing" {
-  local prefix="$TEST_DIR/nvm-prefix"
-  mkdir -p "$prefix" "$TEST_DIR/bin"
-  cat > "$prefix/nvm.sh" <<EOF
+@test "node install.sh adds LTS to an existing NVM without a default" {
+  local nvm_dir="$TEST_DIR/existing nvm"
+  mkdir -p "$nvm_dir"
+  cat > "$nvm_dir/nvm.sh" <<EOF
 nvm() {
   if [[ "\$1" == "version" && "\$2" == "default" ]]; then
     return 3
@@ -106,27 +97,84 @@ nvm() {
   echo "\$*" >> "$TEST_DIR/nvm-commands"
 }
 EOF
-  cat > "$TEST_DIR/bin/brew" <<EOF
-#!/usr/bin/env bash
-if [[ "\$1" == "list" ]]; then
-  exit 1
-fi
-if [[ "\$1" == "--prefix" ]]; then
-  echo "$prefix"
-  exit 0
-fi
-echo "\$*" >> "$TEST_DIR/brew-commands"
-EOF
-  chmod +x "$TEST_DIR/bin/brew"
 
-  run env HOME="$TEST_DIR/home" PATH="$TEST_DIR/bin:/usr/bin:/bin" \
+  run env HOME="$TEST_DIR/home" NVM_DIR="$nvm_dir" PATH="/usr/bin:/bin" \
     "$BATS_TEST_DIRNAME/../node/install.sh"
 
   [ "$status" -eq 0 ]
-  [[ "$output" == *"Installing NVM..."* ]]
   [[ "$output" == *"Installing the current Node.js LTS..."* ]]
-  [ "$(cat "$TEST_DIR/brew-commands")" = "install nvm" ]
   [ "$(cat "$TEST_DIR/nvm-commands")" = $'install --lts\nalias default lts/*' ]
+}
+
+@test "node install.sh installs NVM and a default Node LTS when missing" {
+  mkdir -p "$TEST_DIR/bin"
+  cat > "$TEST_DIR/bin/curl" <<EOF
+#!/usr/bin/env bash
+while [[ \$# -gt 0 ]]; do
+  if [[ "\$1" == "--output" ]]; then
+    output="\$2"
+    shift 2
+  else
+    shift
+  fi
+done
+cat > "\$output" <<'INSTALLER'
+#!/usr/bin/env bash
+echo "\${PROFILE-}|\${NVM_DIR-}" > "$TEST_DIR/install-environment"
+mkdir -p "\$NVM_DIR"
+cat > "\$NVM_DIR/nvm.sh" <<'NVM'
+nvm() {
+  if [[ "\$1" == "version" && "\$2" == "default" ]]; then
+    return 3
+  fi
+  echo "\$*" >> "$TEST_DIR/nvm-commands"
+}
+NVM
+INSTALLER
+EOF
+  cat > "$TEST_DIR/bin/shasum" <<'EOF'
+#!/usr/bin/env bash
+echo "066ce4eaf4d78eaa6410433bc9ba58faaba646157cbbed6109153e6c24c5f8a5  \$3"
+EOF
+  chmod +x "$TEST_DIR/bin/curl" "$TEST_DIR/bin/shasum"
+
+  run env HOME="$TEST_DIR/home" NVM_DIR="$TEST_DIR/home/.nvm" \
+    PATH="$TEST_DIR/bin:/usr/bin:/bin" \
+    "$BATS_TEST_DIRNAME/../node/install.sh"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Installing NVM v0.40.7..."* ]]
+  [[ "$output" == *"Installing the current Node.js LTS..."* ]]
+  [ "$(cat "$TEST_DIR/install-environment")" = "/dev/null|$TEST_DIR/home/.nvm" ]
+  [ "$(cat "$TEST_DIR/nvm-commands")" = $'install --lts\nalias default lts/*' ]
+}
+
+@test "node install.sh rejects an NVM installer with the wrong checksum" {
+  mkdir -p "$TEST_DIR/bin"
+  cat > "$TEST_DIR/bin/curl" <<'EOF'
+#!/usr/bin/env bash
+while [[ $# -gt 0 ]]; do
+  if [[ "$1" == "--output" ]]; then
+    printf 'unexpected installer' > "$2"
+    exit 0
+  fi
+  shift
+done
+exit 1
+EOF
+  cat > "$TEST_DIR/bin/shasum" <<'EOF'
+#!/usr/bin/env bash
+echo "incorrect  $3"
+EOF
+  chmod +x "$TEST_DIR/bin/curl" "$TEST_DIR/bin/shasum"
+
+  run env HOME="$TEST_DIR/home" NVM_DIR="$TEST_DIR/home/.nvm" \
+    PATH="$TEST_DIR/bin:/usr/bin:/bin" \
+    "$BATS_TEST_DIRNAME/../node/install.sh"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"NVM installer checksum verification failed."* ]]
+  [ ! -e "$TEST_DIR/home/.nvm/nvm.sh" ]
 }
 
 @test "zsh install checks for oh-my-zsh directory" {

@@ -32,6 +32,7 @@ load_bootstrap_functions() {
   # Extract the functions under test from bootstrap
   sed -n '/^setup_gitconfig ()/,/^}/p' < "$DOTFILES_ROOT/bootstrap" > "$TEST_DIR/functions.sh"
   sed -n '/^link_file ()/,/^}/p' < "$DOTFILES_ROOT/bootstrap" >> "$TEST_DIR/functions.sh"
+  sed -n '/^install_dotfiles ()/,/^}/p' < "$DOTFILES_ROOT/bootstrap" >> "$TEST_DIR/functions.sh"
   sed -n '/^info ()/,/^}/p' < "$DOTFILES_ROOT/bootstrap" >> "$TEST_DIR/functions.sh"
   sed -n '/^success ()/,/^}/p' < "$DOTFILES_ROOT/bootstrap" >> "$TEST_DIR/functions.sh"
   sed -n '/^fail ()/,/^}/p' < "$DOTFILES_ROOT/bootstrap" >> "$TEST_DIR/functions.sh"
@@ -73,6 +74,22 @@ load_bootstrap_functions() {
   local count=$(find -H "$DOTFILES_ROOT" -maxdepth 2 -name '*.symlink' | wc -l)
   
   [ "$count" -eq 3 ]
+}
+
+@test "install_dotfiles safely handles paths with spaces" {
+  export DOTFILES_ROOT="$TEST_DIR/dot files"
+  export DOTFILES_DEST="$TEST_DIR/home files"
+  mkdir -p "$DOTFILES_ROOT/topic name" "$DOTFILES_DEST"
+  echo "content" > "$DOTFILES_ROOT/topic name/file name.symlink"
+  cp "$BATS_TEST_DIRNAME/../script/bootstrap" "$DOTFILES_ROOT/bootstrap"
+  load_bootstrap_functions
+
+  run install_dotfiles
+
+  [ "$status" -eq 0 ]
+  [ -L "$DOTFILES_DEST/.file name" ]
+  [ "$(readlink "$DOTFILES_DEST/.file name")" = \
+    "$DOTFILES_ROOT/topic name/file name.symlink" ]
 }
 
 @test "symlink destination uses correct naming convention" {
@@ -217,6 +234,39 @@ load_bootstrap_functions() {
   [ "$status" -eq 0 ]
   [ "$(git config --file "$gitconfig" --get user.name)" = "Existing Name" ]
   [ "$(git config --file "$gitconfig" --get user.email)" = "new@example.com" ]
+}
+
+@test "setup_gitconfig preserves a custom credential helper during repair" {
+  mkdir -p "$DOTFILES_ROOT/git"
+  local gitconfig="$DOTFILES_ROOT/git/gitconfig.local.symlink"
+  cp "$BATS_TEST_DIRNAME/../git/gitconfig.local.symlink.example" "$gitconfig"
+  git config --file "$gitconfig" user.name 'Existing Name'
+  git config --file "$gitconfig" user.email ''
+  git config --file "$gitconfig" credential.helper 'custom-helper'
+  load_bootstrap_functions
+
+  run setup_gitconfig <<< 'new@example.com'
+
+  [ "$status" -eq 0 ]
+  [ "$(git config --file "$gitconfig" --get credential.helper)" = "custom-helper" ]
+}
+
+@test "setup_gitconfig preserves multiple credential helpers during repair" {
+  mkdir -p "$DOTFILES_ROOT/git"
+  local gitconfig="$DOTFILES_ROOT/git/gitconfig.local.symlink"
+  cp "$BATS_TEST_DIRNAME/../git/gitconfig.local.symlink.example" "$gitconfig"
+  git config --file "$gitconfig" user.name 'Existing Name'
+  git config --file "$gitconfig" user.email ''
+  git config --file "$gitconfig" --unset-all credential.helper
+  git config --file "$gitconfig" --add credential.helper 'first-helper'
+  git config --file "$gitconfig" --add credential.helper 'second-helper'
+  load_bootstrap_functions
+
+  run setup_gitconfig <<< 'new@example.com'
+
+  [ "$status" -eq 0 ]
+  [ "$(git config --file "$gitconfig" --get-all credential.helper)" = \
+    $'first-helper\nsecond-helper' ]
 }
 
 @test "setup_gitconfig leaves valid existing identity unchanged" {

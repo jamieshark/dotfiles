@@ -41,9 +41,10 @@ with its supported installer when needed, and then runs each declared component
 installer. Homebrew is discovered from Apple Silicon and Intel prefixes without
 requiring shell-startup installation logic.
 
-Bootstrap also installs NVM through Homebrew and provisions the current Node.js
-LTS only when NVM has no default version. Node tooling remains lazy-loaded when
-first used.
+Bootstrap preserves an existing NVM installation or installs a pinned NVM
+release from its verified official installer when missing. It provisions the
+current Node.js LTS only when NVM has no default version, and Node tooling
+remains lazy-loaded until first use.
 
 Bootstrap prompts for any missing Git author name or email, then creates or
 repairs the ignored `git/gitconfig.local.symlink` while preserving valid
