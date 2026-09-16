@@ -105,3 +105,10 @@ EOF
   [ ! -e "$REPO_ROOT/git/.git-prompt.sh" ]
   [ ! -e "$REPO_ROOT/git/completion.zsh" ]
 }
+
+@test "Git completion and prompt remain available as optional Bash fallbacks" {
+  [ -f "$REPO_ROOT/bash/git-completion.bash" ]
+  [ -f "$REPO_ROOT/bash/git-prompt.sh" ]
+  grep -Fq '__git_complete git __git_main' "$REPO_ROOT/bash/git-completion.bash"
+  grep -Fq '__git_ps1' "$REPO_ROOT/bash/git-prompt.sh"
+}
