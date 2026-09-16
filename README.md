@@ -45,13 +45,14 @@ The configured formatters and UI values expect these extensions where their lang
 - `DavidAnson.vscode-markdownlint`
 - `GitHub.vscode-pull-request-github`
 - `eamodio.gitlens`
+- `Shopify.ruby-lsp`
 - `GitHub.github-vscode-theme`
 - `PKief.material-icon-theme`
 - `miguelsolorio.fluent-icons`
 
-The `github.codespaces.showPerformanceExplorer` preference is Codespaces-only and requires the `GitHub.codespaces` desktop extension. Codespaces bootstrap installs zsh, so the Linux terminal default is valid there. The macOS default also expects zsh; Windows uses VS Code's detected default shell.
+The `github.codespaces.showPerformanceExplorer` preference is Codespaces-only and requires the `GitHub.codespaces` desktop extension. Codespaces bootstrap installs zsh, so the Linux terminal default is valid there. The macOS default also expects zsh; Windows uses VS Code's detected PowerShell profile.
 
-Copilot completion preferences use the support bundled with current VS Code and require a signed-in account with Copilot access. `Shopify.ruby-lsp` remains excluded from Settings Sync so Ruby tooling can be installed per environment when a project needs it.
+Copilot completion preferences use the support bundled with current VS Code and require a signed-in account with Copilot access. `Shopify.ruby-lsp` remains excluded from Settings Sync so it can be installed only in environments that work on Ruby; when installed, it formats Ruby with RuboCop on save.
 
 ## Testing
 To ensure the dotfiles are installing correctly and prevent regressions:

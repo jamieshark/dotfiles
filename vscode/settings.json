@@ -35,6 +35,9 @@
     },
     "editor.wordWrap": "wordWrapColumn"
   },
+  "[ruby]": {
+    "editor.defaultFormatter": "Shopify.ruby-lsp"
+  },
   "[css]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.formatOnSave": true,
@@ -54,6 +57,9 @@
     "editor.formatOnSaveMode": "modifications"
   },
   "editor.acceptSuggestionOnEnter": "smart",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
   "editor.cursorBlinking": "smooth",
   "editor.detectIndentation": true,
   "editor.fontFamily": "Hack, 'Fira Code', Menlo, Monaco, 'Courier New', monospace",
@@ -68,6 +74,14 @@
   "editor.suggestSelection": "first",
   "editor.tabCompletion": "on",
   "editor.tabSize": 2,
+  "eslint.format.enable": true,
+  "eslint.options": {
+    "overrideConfig": {
+      "linterOptions": {
+        "reportUnusedDisableDirectives": "warn"
+      }
+    }
+  },
   "eslint.run": "onSave",
   "eslint.validate": [
     "javascript",
@@ -76,7 +90,8 @@
     "typescriptreact"
   ],
   "files.associations": {
-    "*.go": "go"
+    "*.go": "go",
+    "SERVICEOWNERS": "plaintext"
   },
   "files.exclude": {
     "**/.DS_Store": true,
@@ -109,12 +124,14 @@
   "githubPullRequests.createOnPublishBranch": "never",
   "githubPullRequests.pullBranch": "never",
   "githubPullRequests.terminalLinksHandler": "github",
+  "gitlens.advanced.skipOnboarding": true,
   "gitlens.showWhatsNewAfterUpgrades": false,
   "markdown.preview.breaks": true,
   "markdownlint.config": {
     "MD014": false,
     "MD033": false
   },
+  "rubyLsp.formatter": "rubocop",
   "stylelint.validate": [
     "css",
     "html",
@@ -130,7 +147,13 @@
   "terminal.external.osxExec": "iTerm.app",
   "terminal.integrated.defaultProfile.linux": "zsh",
   "terminal.integrated.defaultProfile.osx": "zsh",
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
   "terminal.integrated.fontFamily": "MesloLGS NF",
+  "terminal.integrated.profiles.windows": {
+    "PowerShell": {
+      "source": "PowerShell"
+    }
+  },
   "typescript.suggest.paths": false,
   "window.autoDetectColorScheme": true,
   "window.title": "${activeEditorMedium}${separator}${rootName}",
