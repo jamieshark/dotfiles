@@ -23,13 +23,15 @@ The test script will automatically install BATS if it's not already present.
   - Tests environment detection (Codespaces, macOS)
   - Validates all expected dotfiles exist
   
-- **install.bats** - Tests for `script/install` and individual `install.sh` scripts
-  - Verifies install.sh discovery mechanism
+- **install.bats** - Tests for `script/install` and component installers
+  - Verifies explicit, path-safe installer execution
   - Tests individual component installers (homebrew, node, slate, zsh)
   - Validates script executability and error handling
 - **shell.bats** - Tests shell startup configuration
   - Validates directory-only, duplicate-free PATH entries
   - Verifies platform-specific Homebrew and alias loading
+  - Confirms startup performs no setup or network commands
+  - Confirms NVM is loaded only when first used
   - Confirms missing optional runtimes do not cause startup errors
 
 ## What the Tests Verify
@@ -42,11 +44,12 @@ The test script will automatically install BATS if it's not already present.
 - ✅ All expected symlink files exist in the repository
 
 ### Install Script Tests
-- ✅ Install script finds all `install.sh` files
+- ✅ Install script runs every declared `install.sh` file in order
 - ✅ Install scripts are executable
 - ✅ Homebrew installer checks for brew and detects OS
 - ✅ Node installer checks for npm and spoof
 - ✅ Zsh installer checks for oh-my-zsh and powerlevel10k
+- ✅ Zsh startup remains configuration-only
 - ✅ Error handling with `set -e`
 
 ## Adding New Tests

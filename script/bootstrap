@@ -2,14 +2,16 @@
 #
 # bootstrap creates symlinks for all dotfiles in this directory to $HOME
 
+set -e
+
 cd "$(dirname "$0")/.."
-export DOTFILES_ROOT=$(pwd -P)
+export DOTFILES_ROOT
+DOTFILES_ROOT="$(pwd -P)"
 if [[ -n "$CODESPACES" ]]; then
-  export DOTFILES_DEST=$DOTFILES_ROOT
+  export DOTFILES_DEST="$DOTFILES_ROOT"
 else
-  export DOTFILES_DEST=$HOME
+  export DOTFILES_DEST="$HOME"
 fi
-set -e # -e: exit on error
 
 echo ''
 
@@ -143,18 +145,11 @@ install_dotfiles () {
 
 install_mac_deps () {
   # Set macOS defaults
-  $DOTFILES_ROOT/macos/set-defaults.sh
-
-  # Install homebrew
-  $DOTFILES_ROOT/homebrew/install.sh 2>&1
-
-  # Upgrade homebrew
-  echo "› brew update"
-  brew update
+  "$DOTFILES_ROOT/macos/set-defaults.sh"
 
   # Install software
   echo "› $DOTFILES_ROOT/script/install"
-  $DOTFILES_ROOT/script/install
+  "$DOTFILES_ROOT/script/install"
 }
 
 
@@ -171,29 +166,33 @@ if [[ -n "$CODESPACES" ]]; then
     success "zsh already installed"
   fi
 
-  # Install fonts for p10k glyphs
-  echo "Installing Meslo Nerd Font for p10k glyphs..."
-  mkdir -p ~/.local/share/fonts
-  if ! cd ~/.local/share/fonts; then
-    fail "Failed to change directory to ~/.local/share/fonts"
-  fi
-  
-  # Download Meslo Nerd Font files
+  # Install fonts for p10k glyphs when missing.
+  font_dir="$HOME/.local/share/fonts"
+  mkdir -p "$font_dir"
+  fonts_installed=false
   font_variants=("Regular" "Bold" "Italic" "Bold Italic")
   for variant in "${font_variants[@]}"; do
-    curl -fLo "MesloLGS NF ${variant}.ttf" "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20${variant// /%20}.ttf"
+    font_path="$font_dir/MesloLGS NF ${variant}.ttf"
+    if [[ ! -f "$font_path" ]]; then
+      echo "Installing Meslo Nerd Font ${variant}..."
+      curl -fLo "$font_path" \
+        "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20${variant// /%20}.ttf"
+      fonts_installed=true
+    fi
   done
-  
-  # Refresh font cache
-  fc-cache -f
-  cd "$DOTFILES_ROOT" || fail "Failed to return to dotfiles directory"
-  success "Meslo Nerd Font installed"
+
+  if [[ "$fonts_installed" == "true" ]]; then
+    fc-cache -f
+    success "Meslo Nerd Font installed"
+  else
+    success "Meslo Nerd Font already installed"
+  fi
 
   # Set ZSH environment variable before running install
   export ZSH="$HOME/.oh-my-zsh"
   
   # Install oh-my-zsh and powerlevel10k
-  bash "$DOTFILES_ROOT/zsh/install"
+  "$DOTFILES_ROOT/zsh/install.sh"
   
   # Symlink zsh configuration files
   ln -sf "$DOTFILES_ROOT/zsh/zshrc.symlink" "$HOME/.zshrc"
@@ -201,9 +200,10 @@ if [[ -n "$CODESPACES" ]]; then
   success "zsh configuration files symlinked"
 
   # Change default shell to zsh
-  if [ "$SHELL" != "$(which zsh)" ]; then
+  zsh_path="$(command -v zsh)"
+  if [ "$SHELL" != "$zsh_path" ]; then
     echo "Changing default shell to zsh..."
-    sudo chsh -s "$(which zsh)" "$(whoami)"
+    sudo chsh -s "$zsh_path" "$(whoami)"
     success "Default shell changed to zsh"
   fi
 

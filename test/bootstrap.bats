@@ -92,20 +92,9 @@ load_bootstrap_functions() {
   [ -x "$BATS_TEST_DIRNAME/../script/install" ]
 }
 
-@test "install script finds install.sh files" {
-  # Create test install.sh files
-  mkdir -p "$DOTFILES_ROOT/test1"
-  mkdir -p "$DOTFILES_ROOT/test2"
-  echo '#!/bin/sh' > "$DOTFILES_ROOT/test1/install.sh"
-  echo 'echo "test1"' >> "$DOTFILES_ROOT/test1/install.sh"
-  echo '#!/bin/sh' > "$DOTFILES_ROOT/test2/install.sh"
-  echo 'echo "test2"' >> "$DOTFILES_ROOT/test2/install.sh"
-  
-  # Count install.sh files
-  cd "$DOTFILES_ROOT"
-  local count=$(find . -name install.sh | wc -l)
-  
-  [ "$count" -eq 2 ]
+@test "bootstrap delegates dependency installation to script/install" {
+  grep -Fq '"$DOTFILES_ROOT/script/install"' "$BATS_TEST_DIRNAME/../script/bootstrap"
+  ! grep -q "brew update" "$BATS_TEST_DIRNAME/../script/bootstrap"
 }
 
 @test "all actual symlink files exist" {
@@ -128,6 +117,7 @@ load_bootstrap_functions() {
     "homebrew/install.sh"
     "slate/install.sh"
     "node/install.sh"
+    "zsh/install.sh"
   )
   
   for file in "${install_files[@]}"; do
@@ -159,6 +149,10 @@ load_bootstrap_functions() {
 }
 
 @test "zsh install script exists" {
-  [ -f "$BATS_TEST_DIRNAME/../zsh/install" ]
-  [ -x "$BATS_TEST_DIRNAME/../zsh/install" ]
+  [ -f "$BATS_TEST_DIRNAME/../zsh/install.sh" ]
+  [ -x "$BATS_TEST_DIRNAME/../zsh/install.sh" ]
+}
+
+@test "Codespaces fonts are downloaded only when missing" {
+  grep -Fq 'if [[ ! -f "$font_path" ]]' "$BATS_TEST_DIRNAME/../script/bootstrap"
 }

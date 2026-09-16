@@ -2,9 +2,17 @@
 #
 # Run all dotfiles installers.
 
-set -e
+set -euo pipefail
 
-cd "$(dirname $0)"/..
+dotfiles_root="$(cd "$(dirname "$0")/.." && pwd -P)"
 
-# find the installers and run them iteratively
-find . -name install.sh | while read installer ; do sh -c "${installer}" ; done
+installers=(
+  "$dotfiles_root/homebrew/install.sh"
+  "$dotfiles_root/node/install.sh"
+  "$dotfiles_root/slate/install.sh"
+  "$dotfiles_root/zsh/install.sh"
+)
+
+for installer in "${installers[@]}"; do
+  "$installer"
+done
