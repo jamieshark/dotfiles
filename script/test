@@ -25,6 +25,7 @@ echo ""
 
 # Run all test files
 $BATS test/*.bats
+./test/monitor-network-test
 
 echo ""
 echo "All tests completed!"

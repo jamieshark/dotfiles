@@ -40,6 +40,10 @@ cd ~/.dotfiles
 
 See [test/README.md](test/README.md) for more information about the test suite.
 
+## Network monitor privacy
+
+`script/monitor-network` keeps device vendor lookup local. It reads the OUI database installed by `arp-scan` or Wireshark and never sends MAC addresses or other local device identifiers to a vendor API. If no supported local database is available, vendor names are reported as unavailable without a remote fallback. Set `MONITOR_NETWORK_OUI_DATABASE` to use another local database file.
+
 ## Features
 - **zsh** with oh-my-zsh framework
 - **powerlevel10k** theme with custom configuration

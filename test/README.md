@@ -31,6 +31,10 @@ The test script will automatically install BATS if it's not already present.
   - Validates directory-only, duplicate-free PATH entries
   - Verifies platform-specific Homebrew and alias loading
   - Confirms missing optional runtimes do not cause startup errors
+- **monitor-network-test** - Tests network threat detection and privacy behavior
+  - Verifies vendor lookup uses a local OUI database
+  - Verifies default execution makes no vendor API request
+  - Verifies missing local vendor data is explicit and non-failing
 
 ## What the Tests Verify
 
