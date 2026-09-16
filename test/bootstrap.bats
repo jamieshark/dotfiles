@@ -113,7 +113,6 @@ load_bootstrap_functions() {
   # Verify that all referenced symlink files in the repo actually exist
   local symlink_files=(
     "zsh/zshrc.symlink"
-    "slate/slate.js.symlink"
     "git/gitignore.symlink"
     "git/gitconfig.symlink"
   )
@@ -127,7 +126,6 @@ load_bootstrap_functions() {
   # Verify that all referenced install.sh files in the repo actually exist
   local install_files=(
     "homebrew/install.sh"
-    "slate/install.sh"
     "node/install.sh"
   )
   
@@ -190,6 +188,22 @@ load_bootstrap_functions() {
   [ "$(git config --file "$gitconfig" --get user.email)" = "$author_email" ]
   [ "$(git config --file "$gitconfig" --get credential.helper)" = "$expected_credential" ]
   git config --file "$gitconfig" --list >/dev/null
+  [ -z "$(find "$DOTFILES_ROOT/git" -name 'gitconfig.local.symlink.??????' -print -quit)" ]
+}
+
+@test "setup_gitconfig removes its temporary file when the atomic move fails" {
+  mkdir -p "$DOTFILES_ROOT/git"
+  cp "$BATS_TEST_DIRNAME/../git/gitconfig.local.symlink.example" "$DOTFILES_ROOT/git/"
+  load_bootstrap_functions
+  mv() {
+    return 1
+  }
+
+  run setup_gitconfig <<< $'Jamie Shark\njamie@example.com'
+
+  [ "$status" -ne 0 ]
+  [ ! -e "$DOTFILES_ROOT/git/gitconfig.local.symlink" ]
+  [ -z "$(find "$DOTFILES_ROOT/git" -name 'gitconfig.local.symlink.??????' -print -quit)" ]
 }
 
 @test "zsh install script exists" {

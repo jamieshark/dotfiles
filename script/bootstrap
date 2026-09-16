@@ -28,7 +28,7 @@ success () {
 fail () {
   printf "\r\033[2K  [\033[0;31mFAIL\033[0m] $1\n"
   echo ''
-  exit
+  exit 1
 }
 
 
@@ -54,12 +54,12 @@ setup_gitconfig () {
     if ! cp git/gitconfig.local.symlink.example "$gitconfig_temp" ||
       ! git config --file "$gitconfig_temp" user.name "$git_authorname" ||
       ! git config --file "$gitconfig_temp" user.email "$git_authoremail" ||
-      ! git config --file "$gitconfig_temp" credential.helper "$git_credential"
+      ! git config --file "$gitconfig_temp" credential.helper "$git_credential" ||
+      ! mv "$gitconfig_temp" "$gitconfig_local"
     then
       rm -f "$gitconfig_temp"
       fail 'unable to create gitconfig'
     fi
-    mv "$gitconfig_temp" "$gitconfig_local"
 
     success 'gitconfig'
   fi

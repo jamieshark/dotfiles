@@ -1,7 +1,16 @@
-# filename with underscore to load first
-PATH=/usr/local/bin:/usr/local/sbin:$ZSH/bin:$PATH
+# Keep PATH entries unique while preserving their first occurrence.
+typeset -gU path PATH
 
-# Add User `~/bin`
-PATH=$HOME/bin:$PATH
+for path_dir in \
+  /usr/local/sbin \
+  /usr/local/bin \
+  /opt/homebrew/sbin \
+  /opt/homebrew/bin \
+  "$ZSH/bin" \
+  "$HOME/bin"
+do
+  [[ -d "$path_dir" ]] && path=("$path_dir" $path)
+done
 
+unset path_dir
 export PATH

@@ -36,6 +36,9 @@ Bootstrap prompts for your Git author name and email, then creates the ignored
 credential helper. The tracked global Git configuration includes this file as
 `~/.gitconfig.local`, keeping machine-specific settings out of the repository.
 
+### Bash fallback
+If Zsh is unavailable, source `~/.dotfiles/bash/git-completion.bash` and `~/.dotfiles/bash/git-prompt.sh` from your Bash configuration. The completion script enables Git tab completion; call `__git_ps1` from `PS1` to show the current branch. The prompt script includes configuration examples in its header.
+
 ## Testing
 To ensure the dotfiles are installing correctly and prevent regressions:
 ```zsh
@@ -49,8 +52,11 @@ See [test/README.md](test/README.md) for more information about the test suite.
 - **zsh** with oh-my-zsh framework
 - **powerlevel10k** theme with custom configuration
 - **Meslo Nerd Font** for proper glyph rendering
-- Custom aliases and environment settings
-- Auto-completion and syntax highlighting plugins
+- Curated navigation and macOS system-inspection aliases
+- macOS keyboard, Finder, Dock, and Safari defaults
+- Platform-aware shell configuration across Apple Silicon, Intel macOS, and Linux
+- Git auto-completion through oh-my-zsh, plus syntax highlighting plugins
+- Optional Git completion and prompt fallback for Bash
 
 # Other inspiration
 https://dotfiles.github.io/inspiration/

@@ -45,21 +45,22 @@ else
   # Load: p10k theme
   [[ ! -f $DOTFILES/zsh/.p10k.zsh ]] || source $DOTFILES/zsh/.p10k.zsh
 
-  # homebrew
-  eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
+# Load PATH configuration first.
+source "$DOTFILES/system/_path.zsh"
+
 # Load: aliases
-source $DOTFILES/zsh/aliases
+source "$DOTFILES/zsh/aliases"
 
 # Load: env
-source $DOTFILES/zsh/env
+source "$DOTFILES/zsh/env"
 
 # find everything but path files and completion files and load them
 config_files=($DOTFILES/**/*.zsh)
 for file in ${${config_files:#*/_path.zsh}:#*/completion.zsh}
 do
-  source $file
+  source "$file"
 done
 
 autoload -U compinit promptinit; compinit promptinit

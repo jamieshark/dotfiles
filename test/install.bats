@@ -58,17 +58,6 @@ teardown() {
   grep -q "which npm" "$BATS_TEST_DIRNAME/../node/install.sh"
 }
 
-@test "slate install.sh is a placeholder" {
-  # Slate install currently just echoes a message
-  grep -q "installing slate" "$BATS_TEST_DIRNAME/../slate/install.sh"
-}
-
-@test "slate install.sh exits successfully" {
-  run "$BATS_TEST_DIRNAME/../slate/install.sh"
-  
-  [ "$status" -eq 0 ]
-}
-
 @test "zsh install checks for oh-my-zsh directory" {
   grep -q "ZSH" "$BATS_TEST_DIRNAME/../zsh/install"
 }
@@ -118,7 +107,6 @@ teardown() {
 @test "all install.sh scripts are executable" {
   local install_files=(
     "$BATS_TEST_DIRNAME/../homebrew/install.sh"
-    "$BATS_TEST_DIRNAME/../slate/install.sh"
     "$BATS_TEST_DIRNAME/../node/install.sh"
   )
   
@@ -130,7 +118,6 @@ teardown() {
 @test "all install.sh scripts have shebang" {
   local install_files=(
     "$BATS_TEST_DIRNAME/../homebrew/install.sh"
-    "$BATS_TEST_DIRNAME/../slate/install.sh"
   )
   
   for file in "${install_files[@]}"; do
