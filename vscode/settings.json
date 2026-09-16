@@ -33,11 +33,10 @@
     "editor.codeActionsOnSave": {
       "source.fixAll.markdownlint": "explicit"
     },
-    "editor.defaultFormatter": "yzhang.markdown-all-in-one",
     "editor.wordWrap": "wordWrapColumn"
   },
   "[ruby]": {
-    "editor.defaultFormatter": "LoranKloeze.ruby-rubocop-revived"
+    "editor.defaultFormatter": "Shopify.ruby-lsp"
   },
   "[css]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode",
@@ -58,7 +57,9 @@
     "editor.formatOnSaveMode": "modifications"
   },
   "editor.acceptSuggestionOnEnter": "smart",
-  "editor.accessibilitySupport": "off",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
   "editor.cursorBlinking": "smooth",
   "editor.detectIndentation": true,
   "editor.fontFamily": "Hack, 'Fira Code', Menlo, Monaco, 'Courier New', monospace",
@@ -73,10 +74,13 @@
   "editor.suggestSelection": "first",
   "editor.tabCompletion": "on",
   "editor.tabSize": 2,
-  "eslint.codeActionsOnSave.mode": "problems",
   "eslint.format.enable": true,
   "eslint.options": {
-    "reportUnusedDisableDirectives": "warn"
+    "overrideConfig": {
+      "linterOptions": {
+        "reportUnusedDisableDirectives": "warn"
+      }
+    }
   },
   "eslint.run": "onSave",
   "eslint.validate": [
@@ -86,7 +90,8 @@
     "typescriptreact"
   ],
   "files.associations": {
-    "*.go": "go"
+    "*.go": "go",
+    "SERVICEOWNERS": "plaintext"
   },
   "files.exclude": {
     "**/.DS_Store": true,
@@ -100,13 +105,6 @@
   "files.trimFinalNewlines": true,
   "files.trimTrailingWhitespace": true,
   "github.codespaces.showPerformanceExplorer": true,
-  // "prettier.configPath": ".prettierrc.js",
-  // "prettier.semi": false,
-  // "prettier.useEditorConfig": false,
-  // "prettier.bracketSpacing": false,
-  // "prettier.trailingComma": "none",
-  // "prettier.singleQuote": true,
-  // "prettier.printWidth": 120,
   "github.copilot.enable": {
     "*": true,
     "markdown": true,
@@ -126,17 +124,14 @@
   "githubPullRequests.createOnPublishBranch": "never",
   "githubPullRequests.pullBranch": "never",
   "githubPullRequests.terminalLinksHandler": "github",
-  "gitlens.showWelcomeOnInstall": false,
+  "gitlens.advanced.skipOnboarding": true,
   "gitlens.showWhatsNewAfterUpgrades": false,
   "markdown.preview.breaks": true,
   "markdownlint.config": {
     "MD014": false,
     "MD033": false
   },
-  "markdownlint.ignore": [
-    "SERVICEOWNERS"
-  ],
-  "ruby.rubocop.autocorrectOnSave": true,
+  "rubyLsp.formatter": "rubocop",
   "stylelint.validate": [
     "css",
     "html",
@@ -152,10 +147,14 @@
   "terminal.external.osxExec": "iTerm.app",
   "terminal.integrated.defaultProfile.linux": "zsh",
   "terminal.integrated.defaultProfile.osx": "zsh",
-  "terminal.integrated.defaultProfile.windows": "zsh",
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
   "terminal.integrated.fontFamily": "MesloLGS NF",
+  "terminal.integrated.profiles.windows": {
+    "PowerShell": {
+      "source": "PowerShell"
+    }
+  },
   "typescript.suggest.paths": false,
-  "vsintellicode.modify.editor.suggestSelection": "automaticallyOverrodeDefaultValue",
   "window.autoDetectColorScheme": true,
   "window.title": "${activeEditorMedium}${separator}${rootName}",
   "workbench.colorCustomizations": {
@@ -191,13 +190,11 @@
   "workbench.sideBar.location": "right",
   "workbench.startupEditor": "none",
   "settingsSync.ignoredExtensions": [
-    "castwide.solargraph",
     "shopify.ruby-lsp"
   ],
   "window.zoomLevel": 1,
   "[postcss]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
-  "editor.wordWrap": "bounded",
-  "github.copilot.editor.enableAutoCompletions": true
+  "editor.wordWrap": "bounded"
 }
