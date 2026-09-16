@@ -61,6 +61,20 @@ assert_file_contains() {
   fi
 }
 
+assert_file_not_exists() {
+  local label="$1" filepath="$2"
+  TESTS_RUN=$((TESTS_RUN + 1))
+  if [[ ! -e "$filepath" ]]; then
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+    printf "  ${GREEN}✓${RESET} %s\n" "$label"
+  else
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+    FAILURES+=("$label")
+    printf "  ${RED}✗${RESET} %s\n" "$label"
+    printf "    unexpected file: %s\n" "$filepath"
+  fi
+}
+
 # ── setup: create isolated temp environment ─────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 TEST_TMP=$(mktemp -d /tmp/monitor-net-test.XXXXXX)
@@ -115,7 +129,83 @@ create_test_harness
 #  TEST SUITE
 # ══════════════════════════════════════════════════════════════════════
 
-# ── Test 1: ARP spoofing detection ──────────────────────────────────
+setup_device_monitor_mocks() {
+  cat > "$MOCK_BIN/route" << 'EOF'
+#!/usr/bin/env bash
+cat << 'ROUTE'
+   route to: default
+destination: default
+    gateway: 192.168.1.1
+  interface: en0
+ROUTE
+EOF
+  cat > "$MOCK_BIN/ipconfig" << 'EOF'
+#!/usr/bin/env bash
+echo "192.168.1.10"
+EOF
+  cat > "$MOCK_BIN/ifconfig" << 'EOF'
+#!/usr/bin/env bash
+cat << 'IFCONFIG'
+en0: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST>
+	inet 192.168.1.10 netmask 0xffffff00 broadcast 192.168.1.255
+	ether 00:bb:cc:dd:ee:ff
+IFCONFIG
+EOF
+  cat > "$MOCK_BIN/networksetup" << 'EOF'
+#!/usr/bin/env bash
+echo "Current Wi-Fi Network: Test Network"
+EOF
+  cat > "$MOCK_BIN/sudo" << 'EOF'
+#!/usr/bin/env bash
+exec "$@"
+EOF
+  cat > "$MOCK_BIN/arp-scan" << 'EOF'
+#!/usr/bin/env bash
+printf '192.168.1.1\t00:bb:cc:00:00:01\tIgnored remote vendor\n'
+printf '192.168.1.10\t00:bb:cc:dd:ee:ff\tIgnored remote vendor\n'
+EOF
+  cat > "$MOCK_BIN/curl" << EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> "$TEST_TMP/curl-requests"
+exit 97
+EOF
+  chmod +x "$MOCK_BIN/route" "$MOCK_BIN/ipconfig" "$MOCK_BIN/ifconfig" \
+    "$MOCK_BIN/networksetup" "$MOCK_BIN/sudo" "$MOCK_BIN/arp-scan" "$MOCK_BIN/curl"
+}
+
+# ── Test 1: Local-only vendor lookup ───────────────────────────────
+test_vendor_lookup_is_local_only() {
+  printf "\n${BOLD}${CYAN}Test: Vendor lookup uses only the local OUI database${RESET}\n"
+
+  setup_device_monitor_mocks
+  printf '00BBCC\tExample Devices, Inc.\n' > "$TEST_TMP/ieee-oui.txt"
+  rm -f "$TEST_TMP/curl-requests"
+
+  local output
+  output=$(MONITOR_NETWORK_OUI_DATABASE="$TEST_TMP/ieee-oui.txt" \
+    "$SCRIPT_DIR/script/monitor-network" --section devices)
+
+  assert_output_contains "resolves vendor from local database" "Example Devices, Inc." "$output"
+  assert_file_not_exists "makes no vendor API or other curl request" "$TEST_TMP/curl-requests"
+}
+
+# ── Test 2: Missing local vendor database ──────────────────────────
+test_missing_vendor_database_is_explicit() {
+  printf "\n${BOLD}${CYAN}Test: Missing local OUI database is explicit and non-failing${RESET}\n"
+
+  setup_device_monitor_mocks
+  rm -f "$TEST_TMP/curl-requests"
+
+  local output
+  output=$(MONITOR_NETWORK_OUI_DATABASE="$TEST_TMP/missing-oui.txt" \
+    "$SCRIPT_DIR/script/monitor-network" --section devices)
+
+  assert_output_contains "reports unavailable local database" \
+    "unknown \(local OUI database unavailable\)" "$output"
+  assert_file_not_exists "does not fall back to a remote lookup" "$TEST_TMP/curl-requests"
+}
+
+# ── Test 3: ARP spoofing detection ──────────────────────────────────
 test_arp_spoof_detected() {
   printf "\n${BOLD}${CYAN}Test: ARP spoofing — duplicate MACs are flagged${RESET}\n"
 
@@ -721,6 +811,8 @@ printf "\n${BOLD}═════════════════════
 printf "${BOLD}  monitor-network unit tests${RESET}\n"
 printf "${BOLD}══════════════════════════════════════════════${RESET}\n"
 
+test_vendor_lookup_is_local_only
+test_missing_vendor_database_is_explicit
 test_arp_spoof_detected
 test_arp_no_spoof
 test_new_device_detected

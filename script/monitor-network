@@ -20,6 +20,7 @@ BASELINE_DIR="$HOME/.config/monitor-network"
 BASELINE_FILE="$BASELINE_DIR/known_devices.txt"
 LOG_FILE="$BASELINE_DIR/monitor.log"
 PORT_ALLOWLIST="$BASELINE_DIR/allowed_ports.txt"
+OUI_DATABASE="${MONITOR_NETWORK_OUI_DATABASE:-}"
 
 # ── helpers ─────────────────────────────────────────────────────────
 banner()  { printf "\n${BOLD}${CYAN}═══  %s  ═══${RESET}\n" "$1"; }
@@ -33,7 +34,31 @@ normalize_mac() {
   echo "$1" | awk -F: '{for(i=1;i<=NF;i++) printf "%s%02s", (i>1?":":""), $i; print ""}' | tr ' ' '0'
 }
 
-# look up vendor from MAC via macvendors.com API
+find_oui_database() {
+  if [[ -n "$OUI_DATABASE" ]]; then
+    [[ -r "$OUI_DATABASE" ]] && printf '%s\n' "$OUI_DATABASE"
+    return 0
+  fi
+
+  local database
+  for database in \
+    /opt/homebrew/share/arp-scan/ieee-oui.txt \
+    /usr/local/share/arp-scan/ieee-oui.txt \
+    /usr/share/arp-scan/ieee-oui.txt \
+    /opt/homebrew/share/wireshark/manuf \
+    /usr/local/share/wireshark/manuf \
+    /Applications/Wireshark.app/Contents/Resources/share/wireshark/manuf
+  do
+    if [[ -r "$database" ]]; then
+      printf '%s\n' "$database"
+      return
+    fi
+  done
+
+  return 0
+}
+
+# look up vendor from a local arp-scan or Wireshark OUI database
 lookup_vendor() {
   local mac
   mac=$(normalize_mac "$1")
@@ -44,8 +69,36 @@ lookup_vendor() {
     echo "private (randomized MAC)"
     return
   fi
-  sleep 1  # rate limit: macvendors.com allows 1 req/sec
-  curl -sf --max-time 2 "https://api.macvendors.com/$mac" 2>/dev/null || echo "unknown"
+
+  local database
+  database=$(find_oui_database)
+  if [[ -z "$database" ]]; then
+    echo "unknown (local OUI database unavailable)"
+    return
+  fi
+
+  local compact_mac vendor
+  compact_mac=$(echo "$mac" | tr -d ':' | tr '[:lower:]' '[:upper:]')
+  vendor=$(awk -v mac="$compact_mac" '
+    BEGIN { best_length = 0 }
+    !/^#/ {
+      key = toupper($1)
+      gsub(/[:-]/, "", key)
+      sub(/\/[0-9]+$/, "", key)
+      if (key ~ /^[0-9A-F]+$/ && index(mac, key) == 1 && length(key) > best_length) {
+        line = $0
+        sub(/^[^[:space:]]+[[:space:]]+/, "", line)
+        sub(/^\(hex\)[[:space:]]+/, "", line)
+        vendor = line
+        best_length = length(key)
+      }
+    }
+    END {
+      if (vendor != "") print vendor
+    }
+  ' "$database")
+
+  echo "${vendor:-unknown vendor}"
 }
 
 need() {
@@ -71,6 +124,7 @@ Options:
 
 Requires: nmap, arp-scan (brew install nmap arp-scan)
 Optional: tcpdump (ships with macOS)
+Vendor lookup: local arp-scan/Wireshark OUI database only; no remote fallback
 EOF
   exit 0
 }
@@ -695,7 +749,7 @@ section_inspect() {
   local mac
   mac=$(echo "$arp_entry" | awk '{print $4}')
   if [[ -n "$mac" && "$mac" != "(incomplete)" ]]; then
-    # macOS arp strips leading zeros (c:fe:7b → 0c:fe:7b); normalize for API lookup
+    # macOS arp strips leading zeros (c:fe:7b → 0c:fe:7b)
     local norm_mac
     norm_mac=$(normalize_mac "$mac")
     info "MAC address: $norm_mac"
