@@ -25,7 +25,7 @@ The test script will automatically install BATS if it's not already present.
   
 - **install.bats** - Tests for `script/install` and individual `install.sh` scripts
   - Verifies install.sh discovery mechanism
-  - Tests individual component installers (homebrew, node, slate, zsh)
+  - Tests individual component installers (homebrew, node, zsh)
   - Validates script executability and error handling
 - **shell.bats** - Tests shell startup configuration
   - Validates directory-only, duplicate-free PATH entries
