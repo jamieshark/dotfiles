@@ -56,12 +56,77 @@ teardown() {
   [ "$status" -eq 0 ]
 }
 
-@test "node install.sh checks for spoof command" {
-  grep -q "command -v spoof" "$BATS_TEST_DIRNAME/../node/install.sh"
+@test "node install.sh uses Homebrew to provision NVM" {
+  grep -Fq 'list --formula nvm' "$BATS_TEST_DIRNAME/../node/install.sh"
+  grep -Fq 'install nvm' "$BATS_TEST_DIRNAME/../node/install.sh"
+  ! grep -q "spoof" "$BATS_TEST_DIRNAME/../node/install.sh"
 }
 
-@test "node install.sh checks for npm command" {
-  grep -q "command -v npm" "$BATS_TEST_DIRNAME/../node/install.sh"
+@test "node install.sh skips setup when NVM and a default Node version exist" {
+  local prefix="$TEST_DIR/nvm-prefix"
+  mkdir -p "$prefix" "$TEST_DIR/bin"
+  cat > "$prefix/nvm.sh" <<EOF
+nvm() {
+  if [[ "\$1" == "version" && "\$2" == "default" ]]; then
+    return 0
+  fi
+  echo "\$*" >> "$TEST_DIR/nvm-commands"
+}
+EOF
+  cat > "$TEST_DIR/bin/brew" <<EOF
+#!/usr/bin/env bash
+if [[ "\$1" == "list" ]]; then
+  exit 0
+fi
+if [[ "\$1" == "--prefix" ]]; then
+  echo "$prefix"
+  exit 0
+fi
+echo "\$*" >> "$TEST_DIR/brew-commands"
+EOF
+  chmod +x "$TEST_DIR/bin/brew"
+
+  run env HOME="$TEST_DIR/home" PATH="$TEST_DIR/bin:/usr/bin:/bin" \
+    "$BATS_TEST_DIRNAME/../node/install.sh"
+
+  [ "$status" -eq 0 ]
+  [ "$output" = "" ]
+  [ ! -e "$TEST_DIR/brew-commands" ]
+  [ ! -e "$TEST_DIR/nvm-commands" ]
+}
+
+@test "node install.sh installs NVM and a default Node LTS when missing" {
+  local prefix="$TEST_DIR/nvm-prefix"
+  mkdir -p "$prefix" "$TEST_DIR/bin"
+  cat > "$prefix/nvm.sh" <<EOF
+nvm() {
+  if [[ "\$1" == "version" && "\$2" == "default" ]]; then
+    return 3
+  fi
+  echo "\$*" >> "$TEST_DIR/nvm-commands"
+}
+EOF
+  cat > "$TEST_DIR/bin/brew" <<EOF
+#!/usr/bin/env bash
+if [[ "\$1" == "list" ]]; then
+  exit 1
+fi
+if [[ "\$1" == "--prefix" ]]; then
+  echo "$prefix"
+  exit 0
+fi
+echo "\$*" >> "$TEST_DIR/brew-commands"
+EOF
+  chmod +x "$TEST_DIR/bin/brew"
+
+  run env HOME="$TEST_DIR/home" PATH="$TEST_DIR/bin:/usr/bin:/bin" \
+    "$BATS_TEST_DIRNAME/../node/install.sh"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Installing NVM..."* ]]
+  [[ "$output" == *"Installing the current Node.js LTS..."* ]]
+  [ "$(cat "$TEST_DIR/brew-commands")" = "install nvm" ]
+  [ "$(cat "$TEST_DIR/nvm-commands")" = $'install --lts\nalias default lts/*' ]
 }
 
 @test "zsh install checks for oh-my-zsh directory" {

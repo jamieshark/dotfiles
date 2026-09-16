@@ -48,7 +48,7 @@ The test script will automatically install BATS if it's not already present.
 - ✅ Install script runs every declared `install.sh` file in order
 - ✅ Install scripts are executable
 - ✅ Homebrew installer checks for brew and detects OS
-- ✅ Node installer checks for npm and spoof
+- ✅ Node installer provisions NVM and a default Node LTS only when needed
 - ✅ Zsh installer checks for oh-my-zsh and powerlevel10k
 - ✅ Zsh startup remains configuration-only
 - ✅ Error handling with `set -e`

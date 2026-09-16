@@ -41,6 +41,10 @@ with its supported installer when needed, and then runs each declared component
 installer. Homebrew is discovered from Apple Silicon and Intel prefixes without
 requiring shell-startup installation logic.
 
+Bootstrap also installs NVM through Homebrew and provisions the current Node.js
+LTS only when NVM has no default version. Node tooling remains lazy-loaded when
+first used.
+
 Bootstrap prompts for any missing Git author name or email, then creates or
 repairs the ignored `git/gitconfig.local.symlink` while preserving valid
 identity values. New or repaired configuration uses the platform-appropriate
@@ -67,7 +71,7 @@ See [test/README.md](test/README.md) for more information about the test suite.
 - macOS keyboard, Finder, Dock, and Safari defaults
 - Platform-aware shell configuration across Apple Silicon, Intel macOS, and Linux
 - Git auto-completion through oh-my-zsh, plus syntax highlighting plugins
-- Lazy NVM initialization so Node tooling does not slow every shell startup
+- Idempotent NVM and Node.js LTS setup with lazy shell initialization
 - Optional Git completion and prompt fallback for Bash
 
 # Other inspiration
