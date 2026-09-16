@@ -112,7 +112,6 @@ load_bootstrap_functions() {
   # Verify that all referenced symlink files in the repo actually exist
   local symlink_files=(
     "zsh/zshrc.symlink"
-    "slate/slate.js.symlink"
     "git/gitignore.symlink"
     "git/gitconfig.symlink"
   )
@@ -126,7 +125,6 @@ load_bootstrap_functions() {
   # Verify that all referenced install.sh files in the repo actually exist
   local install_files=(
     "homebrew/install.sh"
-    "slate/install.sh"
     "node/install.sh"
   )
   

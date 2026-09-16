@@ -95,3 +95,13 @@ EOF
   [ "$status" -eq 0 ]
   [ "$output" = "" ]
 }
+
+@test "Git completion is provided by the oh-my-zsh git plugin" {
+  grep -Eq '^[[:space:]]*git[[:space:]]*$' "$REPO_ROOT/zsh/plugins"
+  grep -Fq 'source ${ZSH:-~/.oh-my-zsh}/oh-my-zsh.sh' "$REPO_ROOT/zsh/zshrc.symlink"
+}
+
+@test "obsolete vendored Git shell scripts are absent" {
+  [ ! -e "$REPO_ROOT/git/.git-prompt.sh" ]
+  [ ! -e "$REPO_ROOT/git/completion.zsh" ]
+}
