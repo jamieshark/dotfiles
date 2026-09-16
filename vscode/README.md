@@ -4,6 +4,14 @@
 Merge the file into VS Code user settings, then use Settings Sync to share it
 with trusted Codespaces.
 
+## GitHub Codespaces
+
+```bash
+cd /workspaces/.codespaces/.persistedshare/dotfiles
+script/bootstrap
+exec zsh
+```
+
 The configured language formatters and themes expect these extensions where
 their features are used:
 
