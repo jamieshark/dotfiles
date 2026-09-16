@@ -31,6 +31,28 @@ script/bootstrap
 ```
 This will symlink the appropriate files in .dotfiles to your home directory. Everything is configured and tweaked within ~/.dotfiles and changes are reflected immediately once updated profiles are reloaded.
 
+### VS Code
+
+`vscode/settings.json` is a user-settings baseline; the bootstrap script does not install it. Merge it into VS Code user settings, then use Settings Sync to share it with trusted Codespaces.
+
+The configured formatters and UI values expect these extensions where their languages or themes are used:
+
+- `manuelpuyol.erb-linter`
+- `golang.go`
+- `esbenp.prettier-vscode`
+- `stylelint.vscode-stylelint`
+- `dbaeumer.vscode-eslint`
+- `DavidAnson.vscode-markdownlint`
+- `GitHub.vscode-pull-request-github`
+- `eamodio.gitlens`
+- `GitHub.github-vscode-theme`
+- `PKief.material-icon-theme`
+- `miguelsolorio.fluent-icons`
+
+The `github.codespaces.showPerformanceExplorer` preference is Codespaces-only and requires the `GitHub.codespaces` desktop extension. Codespaces bootstrap installs zsh, so the Linux terminal default is valid there. The macOS default also expects zsh; Windows uses VS Code's detected default shell.
+
+Copilot completion preferences use the support bundled with current VS Code and require a signed-in account with Copilot access. `Shopify.ruby-lsp` remains excluded from Settings Sync so Ruby tooling can be installed per environment when a project needs it.
+
 ## Testing
 To ensure the dotfiles are installing correctly and prevent regressions:
 ```zsh

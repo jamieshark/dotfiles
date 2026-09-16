@@ -31,6 +31,10 @@ The test script will automatically install BATS if it's not already present.
   - Validates directory-only, duplicate-free PATH entries
   - Verifies platform-specific Homebrew and alias loading
   - Confirms missing optional runtimes do not cause startup errors
+- **vscode.bats** - Tests the shared VS Code settings baseline
+  - Validates JSON syntax and platform terminal defaults
+  - Rejects known stale extension settings
+  - Ensures accessibility support is not forced off
 
 ## What the Tests Verify
 
